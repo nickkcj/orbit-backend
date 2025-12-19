@@ -11,7 +11,6 @@ import (
 )
 
 type CreatePostRequest struct {
-	TenantID      string `json:"tenant_id" validate:"required"`
 	CategoryID    string `json:"category_id"`
 	Title         string `json:"title" validate:"required"`
 	Content       string `json:"content"`
@@ -29,21 +28,22 @@ type UpdatePostRequest struct {
 }
 
 func (h *Handler) CreatePost(c echo.Context) error {
+	tenant := GetTenantFromContext(c)
+	if tenant == nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "tenant context required"})
+	}
+
 	var req CreatePostRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
 	}
 
-	tenantID, err := uuid.Parse(req.TenantID)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid tenant_id"})
-	}
-
-	// TODO: Get author_id from JWT token
-	authorID := uuid.New() // Placeholder
+	// Get author from auth context
+	user := GetUserFromContext(c)
+	authorID := user.ID
 
 	input := service.CreatePostInput{
-		TenantID:      tenantID,
+		TenantID:      tenant.ID,
 		AuthorID:      authorID,
 		Title:         req.Title,
 		Content:       req.Content,
@@ -85,9 +85,9 @@ func (h *Handler) GetPost(c echo.Context) error {
 }
 
 func (h *Handler) ListPosts(c echo.Context) error {
-	tenantID, err := uuid.Parse(c.Param("tenantId"))
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid tenant_id"})
+	tenant := GetTenantFromContext(c)
+	if tenant == nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "tenant context required"})
 	}
 
 	limit, _ := strconv.Atoi(c.QueryParam("limit"))
@@ -100,7 +100,7 @@ func (h *Handler) ListPosts(c echo.Context) error {
 		offset = 0
 	}
 
-	posts, err := h.services.Post.ListByTenant(c.Request().Context(), tenantID, int32(limit), int32(offset))
+	posts, err := h.services.Post.ListByTenant(c.Request().Context(), tenant.ID, int32(limit), int32(offset))
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to list posts"})
 	}

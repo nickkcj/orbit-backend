@@ -39,9 +39,19 @@ func main() {
 
 	// Initialize layers
 	db := database.New(conn)
-	services := service.New(db, cfg.JWTSecret)
+
+	// Storage config (R2)
+	storageConfig := &service.StorageConfig{
+		AccountID:       cfg.R2AccountID,
+		AccessKeyID:     cfg.R2AccessKeyID,
+		SecretAccessKey: cfg.R2SecretAccessKey,
+		BucketName:      cfg.R2BucketName,
+	}
+
+	services := service.New(db, cfg.JWTSecret, storageConfig)
 	handlers := handler.New(services)
 	authMiddleware := middleware.NewAuthMiddleware(services.Auth)
+	tenantMiddleware := middleware.NewTenantMiddleware(services.Tenant, cfg.BaseDomain)
 
 	// Echo instance
 	e := echo.New()
@@ -53,10 +63,10 @@ func main() {
 	e.Use(echoMiddleware.CORS())
 
 	// Register routes
-	handlers.RegisterRoutes(e, authMiddleware)
+	handlers.RegisterRoutes(e, authMiddleware, tenantMiddleware)
 
 	// Start server
-	log.Printf("Server starting on port %s", cfg.Port)
+	log.Printf("Server starting on port %s (base domain: %s)", cfg.Port, cfg.BaseDomain)
 	if err := e.Start(":" + cfg.Port); err != nil && err != http.ErrServerClosed {
 		log.Fatal("Failed to start server:", err)
 	}

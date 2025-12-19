@@ -6,60 +6,76 @@ import (
 	"github.com/nickkcj/orbit-backend/internal/middleware"
 )
 
-func (h *Handler) RegisterRoutes(e *echo.Echo, authMiddleware *middleware.AuthMiddleware) {
+func (h *Handler) RegisterRoutes(
+	e *echo.Echo,
+	authMiddleware *middleware.AuthMiddleware,
+	tenantMiddleware *middleware.TenantMiddleware,
+) {
 	// Health
 	e.GET("/health", h.Health)
 
 	// API v1
 	v1 := e.Group("/api/v1")
 
+	// ============================================
+	// GLOBAL ROUTES (no tenant subdomain required)
+	// ============================================
+
 	// Auth (public)
 	v1.POST("/auth/register", h.Register)
 	v1.POST("/auth/login", h.Login)
 
-	// Protected routes
-	protected := v1.Group("", authMiddleware.RequireAuth)
+	// Auth (protected)
+	v1.GET("/auth/me", h.Me, authMiddleware.RequireAuth)
 
-	// Me
-	protected.GET("/auth/me", h.Me)
-
-	// Tenants (public list, protected create)
+	// Tenant management (for main domain operations)
 	v1.GET("/tenants", h.ListTenants)
 	v1.GET("/tenants/:slug", h.GetTenantBySlug)
-	protected.POST("/tenants", h.CreateTenant)
+	v1.POST("/tenants", h.CreateTenant, authMiddleware.RequireAuth)
 
-	// Users
-	protected.POST("/users", h.CreateUser)
-	protected.GET("/users", h.GetUserByEmail)
-	protected.GET("/users/:userId/tenants", h.ListUserTenants)
+	// User's tenants (protected)
+	v1.POST("/users", h.CreateUser, authMiddleware.RequireAuth)
+	v1.GET("/users", h.GetUserByEmail, authMiddleware.RequireAuth)
+	v1.GET("/users/:userId/tenants", h.ListUserTenants, authMiddleware.RequireAuth)
 
-	// Categories (scoped by tenant)
-	v1.GET("/tenants/:tenantId/categories", h.ListCategories)
-	protected.POST("/categories", h.CreateCategory)
-	protected.GET("/categories/:id", h.GetCategory)
-	protected.PUT("/categories/:id", h.UpdateCategory)
-	protected.DELETE("/categories/:id", h.DeleteCategory)
+	// ============================================
+	// TENANT-SCOPED ROUTES (subdomain required)
+	// ============================================
 
-	// Posts (public read, protected write)
-	v1.GET("/tenants/:tenantId/posts", h.ListPosts)
-	v1.GET("/posts/:id", h.GetPost)
-	protected.POST("/posts", h.CreatePost)
-	protected.PUT("/posts/:id", h.UpdatePost)
-	protected.POST("/posts/:id/publish", h.PublishPost)
-	protected.DELETE("/posts/:id", h.DeletePost)
+	// Tenant-scoped group - all routes require valid tenant subdomain
+	tenantScoped := v1.Group("", tenantMiddleware.RequireTenant)
+	tenantProtected := tenantScoped.Group("", authMiddleware.RequireAuth)
 
-	// Comments (public read, protected write)
-	v1.GET("/posts/:postId/comments", h.ListComments)
-	v1.GET("/comments/:id", h.GetComment)
-	v1.GET("/comments/:id/replies", h.ListReplies)
-	protected.POST("/comments", h.CreateComment)
-	protected.PUT("/comments/:id", h.UpdateComment)
-	protected.DELETE("/comments/:id", h.DeleteComment)
+	// Categories (tenant-scoped)
+	tenantScoped.GET("/categories", h.ListCategories)
+	tenantProtected.POST("/categories", h.CreateCategory)
+	tenantProtected.GET("/categories/:id", h.GetCategory)
+	tenantProtected.PUT("/categories/:id", h.UpdateCategory)
+	tenantProtected.DELETE("/categories/:id", h.DeleteCategory)
 
-	// Members (scoped by tenant)
-	v1.GET("/tenants/:tenantId/members", h.ListMembers)
-	protected.POST("/tenants/:tenantId/members", h.AddMember)
-	protected.GET("/tenants/:tenantId/members/:userId", h.GetMember)
-	protected.PUT("/tenants/:tenantId/members/:userId/role", h.UpdateMemberRole)
-	protected.DELETE("/tenants/:tenantId/members/:userId", h.RemoveMember)
+	// Posts (tenant-scoped)
+	tenantScoped.GET("/posts", h.ListPosts)
+	tenantScoped.GET("/posts/:id", h.GetPost)
+	tenantProtected.POST("/posts", h.CreatePost)
+	tenantProtected.PUT("/posts/:id", h.UpdatePost)
+	tenantProtected.POST("/posts/:id/publish", h.PublishPost)
+	tenantProtected.DELETE("/posts/:id", h.DeletePost)
+
+	// Comments (tenant-scoped)
+	tenantScoped.GET("/posts/:postId/comments", h.ListComments)
+	tenantScoped.GET("/comments/:id", h.GetComment)
+	tenantScoped.GET("/comments/:id/replies", h.ListReplies)
+	tenantProtected.POST("/comments", h.CreateComment)
+	tenantProtected.PUT("/comments/:id", h.UpdateComment)
+	tenantProtected.DELETE("/comments/:id", h.DeleteComment)
+
+	// Members (tenant-scoped)
+	tenantScoped.GET("/members", h.ListMembers)
+	tenantProtected.POST("/members", h.AddMember)
+	tenantProtected.GET("/members/:userId", h.GetMember)
+	tenantProtected.PUT("/members/:userId/role", h.UpdateMemberRole)
+	tenantProtected.DELETE("/members/:userId", h.RemoveMember)
+
+	// Uploads (tenant-scoped, protected)
+	tenantProtected.POST("/uploads/presign", h.PresignUpload)
 }

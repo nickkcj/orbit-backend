@@ -22,9 +22,9 @@ type UpdateMemberStatusRequest struct {
 }
 
 func (h *Handler) AddMember(c echo.Context) error {
-	tenantID, err := uuid.Parse(c.Param("tenantId"))
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid tenant_id"})
+	tenant := GetTenantFromContext(c)
+	if tenant == nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "tenant context required"})
 	}
 
 	var req AddMemberRequest
@@ -44,12 +44,12 @@ func (h *Handler) AddMember(c echo.Context) error {
 		if err != nil {
 			return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid role_id"})
 		}
-		member, err = h.services.Member.Add(c.Request().Context(), tenantID, userID, roleID, req.DisplayName)
+		member, err = h.services.Member.Add(c.Request().Context(), tenant.ID, userID, roleID, req.DisplayName)
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 		}
 	} else {
-		member, err = h.services.Member.AddWithDefaultRole(c.Request().Context(), tenantID, userID, req.DisplayName)
+		member, err = h.services.Member.AddWithDefaultRole(c.Request().Context(), tenant.ID, userID, req.DisplayName)
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 		}
@@ -59,9 +59,9 @@ func (h *Handler) AddMember(c echo.Context) error {
 }
 
 func (h *Handler) GetMember(c echo.Context) error {
-	tenantID, err := uuid.Parse(c.Param("tenantId"))
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid tenant_id"})
+	tenant := GetTenantFromContext(c)
+	if tenant == nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "tenant context required"})
 	}
 
 	userID, err := uuid.Parse(c.Param("userId"))
@@ -69,7 +69,7 @@ func (h *Handler) GetMember(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid user_id"})
 	}
 
-	member, err := h.services.Member.GetWithRole(c.Request().Context(), tenantID, userID)
+	member, err := h.services.Member.GetWithRole(c.Request().Context(), tenant.ID, userID)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "member not found"})
 	}
@@ -78,12 +78,12 @@ func (h *Handler) GetMember(c echo.Context) error {
 }
 
 func (h *Handler) ListMembers(c echo.Context) error {
-	tenantID, err := uuid.Parse(c.Param("tenantId"))
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid tenant_id"})
+	tenant := GetTenantFromContext(c)
+	if tenant == nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "tenant context required"})
 	}
 
-	members, err := h.services.Member.ListByTenant(c.Request().Context(), tenantID)
+	members, err := h.services.Member.ListByTenant(c.Request().Context(), tenant.ID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to list members"})
 	}
@@ -106,9 +106,9 @@ func (h *Handler) ListUserTenants(c echo.Context) error {
 }
 
 func (h *Handler) UpdateMemberRole(c echo.Context) error {
-	tenantID, err := uuid.Parse(c.Param("tenantId"))
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid tenant_id"})
+	tenant := GetTenantFromContext(c)
+	if tenant == nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "tenant context required"})
 	}
 
 	userID, err := uuid.Parse(c.Param("userId"))
@@ -126,7 +126,7 @@ func (h *Handler) UpdateMemberRole(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid role_id"})
 	}
 
-	member, err := h.services.Member.UpdateRole(c.Request().Context(), tenantID, userID, roleID)
+	member, err := h.services.Member.UpdateRole(c.Request().Context(), tenant.ID, userID, roleID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
@@ -135,9 +135,9 @@ func (h *Handler) UpdateMemberRole(c echo.Context) error {
 }
 
 func (h *Handler) RemoveMember(c echo.Context) error {
-	tenantID, err := uuid.Parse(c.Param("tenantId"))
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid tenant_id"})
+	tenant := GetTenantFromContext(c)
+	if tenant == nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "tenant context required"})
 	}
 
 	userID, err := uuid.Parse(c.Param("userId"))
@@ -145,7 +145,7 @@ func (h *Handler) RemoveMember(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid user_id"})
 	}
 
-	if err := h.services.Member.Remove(c.Request().Context(), tenantID, userID); err != nil {
+	if err := h.services.Member.Remove(c.Request().Context(), tenant.ID, userID); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 

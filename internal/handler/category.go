@@ -10,7 +10,6 @@ import (
 )
 
 type CreateCategoryRequest struct {
-	TenantID    string `json:"tenant_id" validate:"required"`
 	Name        string `json:"name" validate:"required"`
 	Description string `json:"description"`
 	Icon        string `json:"icon"`
@@ -25,18 +24,18 @@ type UpdateCategoryRequest struct {
 }
 
 func (h *Handler) CreateCategory(c echo.Context) error {
+	tenant := GetTenantFromContext(c)
+	if tenant == nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "tenant context required"})
+	}
+
 	var req CreateCategoryRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
 	}
 
-	tenantID, err := uuid.Parse(req.TenantID)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid tenant_id"})
-	}
-
 	input := service.CreateCategoryInput{
-		TenantID:    tenantID,
+		TenantID:    tenant.ID,
 		Name:        req.Name,
 		Description: req.Description,
 		Icon:        req.Icon,
@@ -66,12 +65,12 @@ func (h *Handler) GetCategory(c echo.Context) error {
 }
 
 func (h *Handler) ListCategories(c echo.Context) error {
-	tenantID, err := uuid.Parse(c.Param("tenantId"))
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid tenant_id"})
+	tenant := GetTenantFromContext(c)
+	if tenant == nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "tenant context required"})
 	}
 
-	categories, err := h.services.Category.ListByTenant(c.Request().Context(), tenantID)
+	categories, err := h.services.Category.ListByTenant(c.Request().Context(), tenant.ID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to list categories"})
 	}

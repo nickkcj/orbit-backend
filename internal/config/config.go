@@ -11,6 +11,13 @@ type Config struct {
 	Port        string
 	Environment string
 	JWTSecret   string
+	BaseDomain  string
+
+	// R2/S3 Storage
+	R2AccountID       string
+	R2AccessKeyID     string
+	R2SecretAccessKey string
+	R2BucketName      string
 }
 
 func Load() *Config {
@@ -22,6 +29,13 @@ func Load() *Config {
 		Port:        getEnv("PORT", "8080"),
 		Environment: getEnv("ENVIRONMENT", "development"),
 		JWTSecret:   getEnv("JWT_SECRET", "change-me-in-production"),
+		BaseDomain:  getEnv("BASE_DOMAIN", "orbit.app.br"),
+
+		// R2/S3 Storage
+		R2AccountID:       getEnv("R2_ACCOUNT_ID", ""),
+		R2AccessKeyID:     getEnv("R2_ACCESS_KEY_ID", ""),
+		R2SecretAccessKey: getEnv("R2_SECRET_ACCESS_KEY", ""),
+		R2BucketName:      getEnv("R2_BUCKET_NAME", "orbit-videos"),
 	}
 }
 
