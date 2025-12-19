@@ -14,6 +14,10 @@ func (h *Handler) RegisterRoutes(
 	// Health
 	e.GET("/health", h.Health)
 
+	// Webhooks (public endpoints for external services)
+	webhooks := e.Group("/webhooks")
+	webhooks.POST("/r2", h.HandleR2Webhook)
+
 	// API v1
 	v1 := e.Group("/api/v1")
 
