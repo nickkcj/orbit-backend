@@ -6,12 +6,13 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	echoMiddleware "github.com/labstack/echo/v4/middleware"
 	_ "github.com/lib/pq"
 
 	"github.com/nickkcj/orbit-backend/internal/config"
 	"github.com/nickkcj/orbit-backend/internal/database"
 	"github.com/nickkcj/orbit-backend/internal/handler"
+	"github.com/nickkcj/orbit-backend/internal/middleware"
 	"github.com/nickkcj/orbit-backend/internal/service"
 )
 
@@ -38,20 +39,21 @@ func main() {
 
 	// Initialize layers
 	db := database.New(conn)
-	services := service.New(db)
+	services := service.New(db, cfg.JWTSecret)
 	handlers := handler.New(services)
+	authMiddleware := middleware.NewAuthMiddleware(services.Auth)
 
 	// Echo instance
 	e := echo.New()
 	e.HideBanner = true
 
 	// Middleware
-	e.Use(middleware.Logger())
-	e.Use(middleware.Recover())
-	e.Use(middleware.CORS())
+	e.Use(echoMiddleware.Logger())
+	e.Use(echoMiddleware.Recover())
+	e.Use(echoMiddleware.CORS())
 
 	// Register routes
-	handlers.RegisterRoutes(e)
+	handlers.RegisterRoutes(e, authMiddleware)
 
 	// Start server
 	log.Printf("Server starting on port %s", cfg.Port)

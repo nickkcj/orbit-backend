@@ -2,52 +2,64 @@ package handler
 
 import (
 	"github.com/labstack/echo/v4"
+
+	"github.com/nickkcj/orbit-backend/internal/middleware"
 )
 
-func (h *Handler) RegisterRoutes(e *echo.Echo) {
+func (h *Handler) RegisterRoutes(e *echo.Echo, authMiddleware *middleware.AuthMiddleware) {
 	// Health
 	e.GET("/health", h.Health)
 
 	// API v1
 	v1 := e.Group("/api/v1")
 
-	// Tenants
+	// Auth (public)
+	v1.POST("/auth/register", h.Register)
+	v1.POST("/auth/login", h.Login)
+
+	// Protected routes
+	protected := v1.Group("", authMiddleware.RequireAuth)
+
+	// Me
+	protected.GET("/auth/me", h.Me)
+
+	// Tenants (public list, protected create)
 	v1.GET("/tenants", h.ListTenants)
 	v1.GET("/tenants/:slug", h.GetTenantBySlug)
-	v1.POST("/tenants", h.CreateTenant)
+	protected.POST("/tenants", h.CreateTenant)
 
 	// Users
-	v1.POST("/users", h.CreateUser)
-	v1.GET("/users", h.GetUserByEmail)
-	v1.GET("/users/:userId/tenants", h.ListUserTenants)
+	protected.POST("/users", h.CreateUser)
+	protected.GET("/users", h.GetUserByEmail)
+	protected.GET("/users/:userId/tenants", h.ListUserTenants)
 
 	// Categories (scoped by tenant)
 	v1.GET("/tenants/:tenantId/categories", h.ListCategories)
-	v1.POST("/categories", h.CreateCategory)
-	v1.GET("/categories/:id", h.GetCategory)
-	v1.PUT("/categories/:id", h.UpdateCategory)
-	v1.DELETE("/categories/:id", h.DeleteCategory)
+	protected.POST("/categories", h.CreateCategory)
+	protected.GET("/categories/:id", h.GetCategory)
+	protected.PUT("/categories/:id", h.UpdateCategory)
+	protected.DELETE("/categories/:id", h.DeleteCategory)
 
-	// Posts (scoped by tenant)
+	// Posts (public read, protected write)
 	v1.GET("/tenants/:tenantId/posts", h.ListPosts)
-	v1.POST("/posts", h.CreatePost)
 	v1.GET("/posts/:id", h.GetPost)
-	v1.PUT("/posts/:id", h.UpdatePost)
-	v1.POST("/posts/:id/publish", h.PublishPost)
-	v1.DELETE("/posts/:id", h.DeletePost)
+	protected.POST("/posts", h.CreatePost)
+	protected.PUT("/posts/:id", h.UpdatePost)
+	protected.POST("/posts/:id/publish", h.PublishPost)
+	protected.DELETE("/posts/:id", h.DeletePost)
 
-	// Comments (scoped by post)
+	// Comments (public read, protected write)
 	v1.GET("/posts/:postId/comments", h.ListComments)
-	v1.POST("/comments", h.CreateComment)
 	v1.GET("/comments/:id", h.GetComment)
 	v1.GET("/comments/:id/replies", h.ListReplies)
-	v1.PUT("/comments/:id", h.UpdateComment)
-	v1.DELETE("/comments/:id", h.DeleteComment)
+	protected.POST("/comments", h.CreateComment)
+	protected.PUT("/comments/:id", h.UpdateComment)
+	protected.DELETE("/comments/:id", h.DeleteComment)
 
 	// Members (scoped by tenant)
 	v1.GET("/tenants/:tenantId/members", h.ListMembers)
-	v1.POST("/tenants/:tenantId/members", h.AddMember)
-	v1.GET("/tenants/:tenantId/members/:userId", h.GetMember)
-	v1.PUT("/tenants/:tenantId/members/:userId/role", h.UpdateMemberRole)
-	v1.DELETE("/tenants/:tenantId/members/:userId", h.RemoveMember)
+	protected.POST("/tenants/:tenantId/members", h.AddMember)
+	protected.GET("/tenants/:tenantId/members/:userId", h.GetMember)
+	protected.PUT("/tenants/:tenantId/members/:userId/role", h.UpdateMemberRole)
+	protected.DELETE("/tenants/:tenantId/members/:userId", h.RemoveMember)
 }

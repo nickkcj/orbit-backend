@@ -5,6 +5,7 @@ import (
 )
 
 type Services struct {
+	Auth     *AuthService
 	Tenant   *TenantService
 	User     *UserService
 	Post     *PostService
@@ -13,8 +14,9 @@ type Services struct {
 	Member   *MemberService
 }
 
-func New(db *database.Queries) *Services {
+func New(db *database.Queries, jwtSecret string) *Services {
 	return &Services{
+		Auth:     NewAuthService(db, jwtSecret),
 		Tenant:   NewTenantService(db),
 		User:     NewUserService(db),
 		Post:     NewPostService(db),
