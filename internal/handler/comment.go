@@ -11,7 +11,6 @@ import (
 )
 
 type CreateCommentRequest struct {
-	TenantID string `json:"tenant_id" validate:"required"`
 	PostID   string `json:"post_id" validate:"required"`
 	ParentID string `json:"parent_id"`
 	Content  string `json:"content" validate:"required"`
@@ -22,14 +21,19 @@ type UpdateCommentRequest struct {
 }
 
 func (h *Handler) CreateComment(c echo.Context) error {
+	tenant := GetTenantFromContext(c)
+	if tenant == nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "tenant context required"})
+	}
+
+	user := GetUserFromContext(c)
+	if user == nil {
+		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "authentication required"})
+	}
+
 	var req CreateCommentRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
-	}
-
-	tenantID, err := uuid.Parse(req.TenantID)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid tenant_id"})
 	}
 
 	postID, err := uuid.Parse(req.PostID)
@@ -37,13 +41,10 @@ func (h *Handler) CreateComment(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid post_id"})
 	}
 
-	// TODO: Get author_id from JWT token
-	authorID := uuid.New()
-
 	input := service.CreateCommentInput{
-		TenantID: tenantID,
+		TenantID: tenant.ID,
 		PostID:   postID,
-		AuthorID: authorID,
+		AuthorID: user.ID,
 		Content:  req.Content,
 	}
 
