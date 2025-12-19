@@ -8,11 +8,13 @@ package database
 import (
 	"context"
 	"database/sql"
+
+	"github.com/google/uuid"
 )
 
 const createTenant = `-- name: CreateTenant :one
-INSERT INTO tenants (id, slug, name, description)
-VALUES (uuid_generate_v4(), $1, $2, $3)
+INSERT INTO tenants (slug, name, description)
+VALUES ($1, $2, $3)
 RETURNING id, slug, name, description, logo_url, settings, status, billing_status, stripe_customer_id, stripe_subscription_id, plan_id, created_at, updated_at
 `
 
@@ -43,12 +45,171 @@ func (q *Queries) CreateTenant(ctx context.Context, arg CreateTenantParams) (Ten
 	return i, err
 }
 
+const deleteTenant = `-- name: DeleteTenant :exec
+UPDATE tenants SET status = 'deleted', updated_at = NOW() WHERE id = $1
+`
+
+func (q *Queries) DeleteTenant(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteTenant, id)
+	return err
+}
+
+const getTenantByID = `-- name: GetTenantByID :one
+SELECT id, slug, name, description, logo_url, settings, status, billing_status, stripe_customer_id, stripe_subscription_id, plan_id, created_at, updated_at FROM tenants WHERE id = $1
+`
+
+func (q *Queries) GetTenantByID(ctx context.Context, id uuid.UUID) (Tenant, error) {
+	row := q.db.QueryRowContext(ctx, getTenantByID, id)
+	var i Tenant
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.Name,
+		&i.Description,
+		&i.LogoUrl,
+		&i.Settings,
+		&i.Status,
+		&i.BillingStatus,
+		&i.StripeCustomerID,
+		&i.StripeSubscriptionID,
+		&i.PlanID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getTenantBySlug = `-- name: GetTenantBySlug :one
 SELECT id, slug, name, description, logo_url, settings, status, billing_status, stripe_customer_id, stripe_subscription_id, plan_id, created_at, updated_at FROM tenants WHERE slug = $1
 `
 
 func (q *Queries) GetTenantBySlug(ctx context.Context, slug string) (Tenant, error) {
 	row := q.db.QueryRowContext(ctx, getTenantBySlug, slug)
+	var i Tenant
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.Name,
+		&i.Description,
+		&i.LogoUrl,
+		&i.Settings,
+		&i.Status,
+		&i.BillingStatus,
+		&i.StripeCustomerID,
+		&i.StripeSubscriptionID,
+		&i.PlanID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const listTenants = `-- name: ListTenants :many
+SELECT id, slug, name, description, logo_url, settings, status, billing_status, stripe_customer_id, stripe_subscription_id, plan_id, created_at, updated_at FROM tenants
+WHERE status = 'active'
+ORDER BY created_at DESC
+`
+
+func (q *Queries) ListTenants(ctx context.Context) ([]Tenant, error) {
+	rows, err := q.db.QueryContext(ctx, listTenants)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Tenant
+	for rows.Next() {
+		var i Tenant
+		if err := rows.Scan(
+			&i.ID,
+			&i.Slug,
+			&i.Name,
+			&i.Description,
+			&i.LogoUrl,
+			&i.Settings,
+			&i.Status,
+			&i.BillingStatus,
+			&i.StripeCustomerID,
+			&i.StripeSubscriptionID,
+			&i.PlanID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateTenant = `-- name: UpdateTenant :one
+UPDATE tenants
+SET name = $2, description = $3, logo_url = $4, updated_at = NOW()
+WHERE id = $1
+RETURNING id, slug, name, description, logo_url, settings, status, billing_status, stripe_customer_id, stripe_subscription_id, plan_id, created_at, updated_at
+`
+
+type UpdateTenantParams struct {
+	ID          uuid.UUID      `json:"id"`
+	Name        string         `json:"name"`
+	Description sql.NullString `json:"description"`
+	LogoUrl     sql.NullString `json:"logo_url"`
+}
+
+func (q *Queries) UpdateTenant(ctx context.Context, arg UpdateTenantParams) (Tenant, error) {
+	row := q.db.QueryRowContext(ctx, updateTenant,
+		arg.ID,
+		arg.Name,
+		arg.Description,
+		arg.LogoUrl,
+	)
+	var i Tenant
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.Name,
+		&i.Description,
+		&i.LogoUrl,
+		&i.Settings,
+		&i.Status,
+		&i.BillingStatus,
+		&i.StripeCustomerID,
+		&i.StripeSubscriptionID,
+		&i.PlanID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateTenantBilling = `-- name: UpdateTenantBilling :one
+UPDATE tenants
+SET billing_status = $2, stripe_customer_id = $3, stripe_subscription_id = $4, plan_id = $5, updated_at = NOW()
+WHERE id = $1
+RETURNING id, slug, name, description, logo_url, settings, status, billing_status, stripe_customer_id, stripe_subscription_id, plan_id, created_at, updated_at
+`
+
+type UpdateTenantBillingParams struct {
+	ID                   uuid.UUID      `json:"id"`
+	BillingStatus        string         `json:"billing_status"`
+	StripeCustomerID     sql.NullString `json:"stripe_customer_id"`
+	StripeSubscriptionID sql.NullString `json:"stripe_subscription_id"`
+	PlanID               sql.NullString `json:"plan_id"`
+}
+
+func (q *Queries) UpdateTenantBilling(ctx context.Context, arg UpdateTenantBillingParams) (Tenant, error) {
+	row := q.db.QueryRowContext(ctx, updateTenantBilling,
+		arg.ID,
+		arg.BillingStatus,
+		arg.StripeCustomerID,
+		arg.StripeSubscriptionID,
+		arg.PlanID,
+	)
 	var i Tenant
 	err := row.Scan(
 		&i.ID,

@@ -8,11 +8,13 @@ package database
 import (
 	"context"
 	"database/sql"
+
+	"github.com/google/uuid"
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (id, email, password_hash, name, avatar_url)
-VALUES (uuid_generate_v4(), $1, $2, $3, $4)
+INSERT INTO users (email, password_hash, name, avatar_url)
+VALUES ($1, $2, $3, $4)
 RETURNING id, email, password_hash, name, avatar_url, email_verified_at, status, created_at, updated_at
 `
 
@@ -45,6 +47,15 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const deleteUser = `-- name: DeleteUser :exec
+UPDATE users SET status = 'deleted', updated_at = NOW() WHERE id = $1
+`
+
+func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteUser, id)
+	return err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
 SELECT id, email, password_hash, name, avatar_url, email_verified_at, status, created_at, updated_at FROM users WHERE email = $1
 `
@@ -64,4 +75,78 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, email, password_hash, name, avatar_url, email_verified_at, status, created_at, updated_at FROM users WHERE id = $1
+`
+
+func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.AvatarUrl,
+		&i.EmailVerifiedAt,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateUser = `-- name: UpdateUser :one
+UPDATE users
+SET name = $2, avatar_url = $3, updated_at = NOW()
+WHERE id = $1
+RETURNING id, email, password_hash, name, avatar_url, email_verified_at, status, created_at, updated_at
+`
+
+type UpdateUserParams struct {
+	ID        uuid.UUID      `json:"id"`
+	Name      string         `json:"name"`
+	AvatarUrl sql.NullString `json:"avatar_url"`
+}
+
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUser, arg.ID, arg.Name, arg.AvatarUrl)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.AvatarUrl,
+		&i.EmailVerifiedAt,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateUserPassword = `-- name: UpdateUserPassword :exec
+UPDATE users SET password_hash = $2, updated_at = NOW() WHERE id = $1
+`
+
+type UpdateUserPasswordParams struct {
+	ID           uuid.UUID `json:"id"`
+	PasswordHash string    `json:"password_hash"`
+}
+
+func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserPassword, arg.ID, arg.PasswordHash)
+	return err
+}
+
+const verifyUserEmail = `-- name: VerifyUserEmail :exec
+UPDATE users SET email_verified_at = NOW(), updated_at = NOW() WHERE id = $1
+`
+
+func (q *Queries) VerifyUserEmail(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, verifyUserEmail, id)
+	return err
 }
