@@ -1,0 +1,18 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Binary
+orbit-backend
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+
+# Go
+tmp/
