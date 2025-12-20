@@ -28,3 +28,15 @@ RETURNING *;
 
 -- name: DeleteTenant :exec
 UPDATE tenants SET status = 'deleted', updated_at = NOW() WHERE id = $1;
+
+-- name: UpdateTenantSettings :one
+UPDATE tenants
+SET settings = $2, updated_at = NOW()
+WHERE id = $1
+RETURNING *;
+
+-- name: UpdateTenantLogo :one
+UPDATE tenants
+SET logo_url = $2, updated_at = NOW()
+WHERE id = $1
+RETURNING *;

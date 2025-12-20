@@ -7,15 +7,16 @@ import (
 )
 
 type Services struct {
-	Auth     *AuthService
-	Tenant   *TenantService
-	User     *UserService
-	Post     *PostService
-	Comment  *CommentService
-	Category *CategoryService
-	Member   *MemberService
-	Storage  *StorageService
-	Webhook  *WebhookService
+	Auth         *AuthService
+	Tenant       *TenantService
+	User         *UserService
+	Post         *PostService
+	Comment      *CommentService
+	Category     *CategoryService
+	Member       *MemberService
+	Storage      *StorageService
+	Webhook      *WebhookService
+	Notification *NotificationService
 }
 
 type StorageConfig struct {
@@ -27,14 +28,15 @@ type StorageConfig struct {
 
 func New(db *database.Queries, jwtSecret string, storageConfig *StorageConfig) *Services {
 	services := &Services{
-		Auth:     NewAuthService(db, jwtSecret),
-		Tenant:   NewTenantService(db),
-		User:     NewUserService(db),
-		Post:     NewPostService(db),
-		Comment:  NewCommentService(db),
-		Category: NewCategoryService(db),
-		Member:   NewMemberService(db),
-		Webhook:  NewWebhookService(db),
+		Auth:         NewAuthService(db, jwtSecret),
+		Tenant:       NewTenantService(db),
+		User:         NewUserService(db),
+		Post:         NewPostService(db),
+		Comment:      NewCommentService(db),
+		Category:     NewCategoryService(db),
+		Member:       NewMemberService(db),
+		Webhook:      NewWebhookService(db),
+		Notification: NewNotificationService(db),
 	}
 
 	// Initialize storage service if config provided

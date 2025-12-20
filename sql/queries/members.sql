@@ -59,3 +59,23 @@ DELETE FROM tenant_members WHERE tenant_id = $1 AND user_id = $2;
 
 -- name: CountMembersByTenant :one
 SELECT COUNT(*) FROM tenant_members WHERE tenant_id = $1 AND status = 'active';
+
+-- name: GetMemberProfile :one
+SELECT
+    tm.*,
+    u.email,
+    u.name as user_name,
+    u.avatar_url as user_avatar,
+    r.slug as role_slug,
+    r.name as role_name,
+    (SELECT COUNT(*) FROM posts WHERE author_id = tm.user_id AND tenant_id = tm.tenant_id AND status = 'published') as post_count
+FROM tenant_members tm
+JOIN users u ON tm.user_id = u.id
+JOIN roles r ON tm.role_id = r.id
+WHERE tm.tenant_id = $1 AND tm.user_id = $2;
+
+-- name: UpdateMemberProfile :one
+UPDATE tenant_members
+SET display_name = $3, bio = $4, updated_at = NOW()
+WHERE tenant_id = $1 AND user_id = $2
+RETURNING *;

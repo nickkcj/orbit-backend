@@ -10,6 +10,7 @@ import (
 	"database/sql"
 
 	"github.com/google/uuid"
+	"github.com/sqlc-dev/pqtype"
 )
 
 const createTenant = `-- name: CreateTenant :one
@@ -210,6 +211,72 @@ func (q *Queries) UpdateTenantBilling(ctx context.Context, arg UpdateTenantBilli
 		arg.StripeSubscriptionID,
 		arg.PlanID,
 	)
+	var i Tenant
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.Name,
+		&i.Description,
+		&i.LogoUrl,
+		&i.Settings,
+		&i.Status,
+		&i.BillingStatus,
+		&i.StripeCustomerID,
+		&i.StripeSubscriptionID,
+		&i.PlanID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateTenantLogo = `-- name: UpdateTenantLogo :one
+UPDATE tenants
+SET logo_url = $2, updated_at = NOW()
+WHERE id = $1
+RETURNING id, slug, name, description, logo_url, settings, status, billing_status, stripe_customer_id, stripe_subscription_id, plan_id, created_at, updated_at
+`
+
+type UpdateTenantLogoParams struct {
+	ID      uuid.UUID      `json:"id"`
+	LogoUrl sql.NullString `json:"logo_url"`
+}
+
+func (q *Queries) UpdateTenantLogo(ctx context.Context, arg UpdateTenantLogoParams) (Tenant, error) {
+	row := q.db.QueryRowContext(ctx, updateTenantLogo, arg.ID, arg.LogoUrl)
+	var i Tenant
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.Name,
+		&i.Description,
+		&i.LogoUrl,
+		&i.Settings,
+		&i.Status,
+		&i.BillingStatus,
+		&i.StripeCustomerID,
+		&i.StripeSubscriptionID,
+		&i.PlanID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateTenantSettings = `-- name: UpdateTenantSettings :one
+UPDATE tenants
+SET settings = $2, updated_at = NOW()
+WHERE id = $1
+RETURNING id, slug, name, description, logo_url, settings, status, billing_status, stripe_customer_id, stripe_subscription_id, plan_id, created_at, updated_at
+`
+
+type UpdateTenantSettingsParams struct {
+	ID       uuid.UUID             `json:"id"`
+	Settings pqtype.NullRawMessage `json:"settings"`
+}
+
+func (q *Queries) UpdateTenantSettings(ctx context.Context, arg UpdateTenantSettingsParams) (Tenant, error) {
+	row := q.db.QueryRowContext(ctx, updateTenantSettings, arg.ID, arg.Settings)
 	var i Tenant
 	err := row.Scan(
 		&i.ID,

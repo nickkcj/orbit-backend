@@ -86,6 +86,67 @@ func (q *Queries) GetMember(ctx context.Context, arg GetMemberParams) (TenantMem
 	return i, err
 }
 
+const getMemberProfile = `-- name: GetMemberProfile :one
+SELECT
+    tm.id, tm.tenant_id, tm.user_id, tm.role_id, tm.display_name, tm.bio, tm.status, tm.joined_at, tm.updated_at,
+    u.email,
+    u.name as user_name,
+    u.avatar_url as user_avatar,
+    r.slug as role_slug,
+    r.name as role_name,
+    (SELECT COUNT(*) FROM posts WHERE author_id = tm.user_id AND tenant_id = tm.tenant_id AND status = 'published') as post_count
+FROM tenant_members tm
+JOIN users u ON tm.user_id = u.id
+JOIN roles r ON tm.role_id = r.id
+WHERE tm.tenant_id = $1 AND tm.user_id = $2
+`
+
+type GetMemberProfileParams struct {
+	TenantID uuid.UUID `json:"tenant_id"`
+	UserID   uuid.UUID `json:"user_id"`
+}
+
+type GetMemberProfileRow struct {
+	ID          uuid.UUID      `json:"id"`
+	TenantID    uuid.UUID      `json:"tenant_id"`
+	UserID      uuid.UUID      `json:"user_id"`
+	RoleID      uuid.UUID      `json:"role_id"`
+	DisplayName sql.NullString `json:"display_name"`
+	Bio         sql.NullString `json:"bio"`
+	Status      string         `json:"status"`
+	JoinedAt    time.Time      `json:"joined_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	Email       string         `json:"email"`
+	UserName    string         `json:"user_name"`
+	UserAvatar  sql.NullString `json:"user_avatar"`
+	RoleSlug    string         `json:"role_slug"`
+	RoleName    string         `json:"role_name"`
+	PostCount   int64          `json:"post_count"`
+}
+
+func (q *Queries) GetMemberProfile(ctx context.Context, arg GetMemberProfileParams) (GetMemberProfileRow, error) {
+	row := q.db.QueryRowContext(ctx, getMemberProfile, arg.TenantID, arg.UserID)
+	var i GetMemberProfileRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.UserID,
+		&i.RoleID,
+		&i.DisplayName,
+		&i.Bio,
+		&i.Status,
+		&i.JoinedAt,
+		&i.UpdatedAt,
+		&i.Email,
+		&i.UserName,
+		&i.UserAvatar,
+		&i.RoleSlug,
+		&i.RoleName,
+		&i.PostCount,
+	)
+	return i, err
+}
+
 const getMemberWithRole = `-- name: GetMemberWithRole :one
 SELECT
     tm.id, tm.tenant_id, tm.user_id, tm.role_id, tm.display_name, tm.bio, tm.status, tm.joined_at, tm.updated_at,
@@ -294,6 +355,42 @@ type RemoveMemberParams struct {
 func (q *Queries) RemoveMember(ctx context.Context, arg RemoveMemberParams) error {
 	_, err := q.db.ExecContext(ctx, removeMember, arg.TenantID, arg.UserID)
 	return err
+}
+
+const updateMemberProfile = `-- name: UpdateMemberProfile :one
+UPDATE tenant_members
+SET display_name = $3, bio = $4, updated_at = NOW()
+WHERE tenant_id = $1 AND user_id = $2
+RETURNING id, tenant_id, user_id, role_id, display_name, bio, status, joined_at, updated_at
+`
+
+type UpdateMemberProfileParams struct {
+	TenantID    uuid.UUID      `json:"tenant_id"`
+	UserID      uuid.UUID      `json:"user_id"`
+	DisplayName sql.NullString `json:"display_name"`
+	Bio         sql.NullString `json:"bio"`
+}
+
+func (q *Queries) UpdateMemberProfile(ctx context.Context, arg UpdateMemberProfileParams) (TenantMember, error) {
+	row := q.db.QueryRowContext(ctx, updateMemberProfile,
+		arg.TenantID,
+		arg.UserID,
+		arg.DisplayName,
+		arg.Bio,
+	)
+	var i TenantMember
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.UserID,
+		&i.RoleID,
+		&i.DisplayName,
+		&i.Bio,
+		&i.Status,
+		&i.JoinedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const updateMemberRole = `-- name: UpdateMemberRole :one

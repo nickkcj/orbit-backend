@@ -84,3 +84,28 @@ func (s *MemberService) Remove(ctx context.Context, tenantID, userID uuid.UUID) 
 func (s *MemberService) Count(ctx context.Context, tenantID uuid.UUID) (int64, error) {
 	return s.db.CountMembersByTenant(ctx, tenantID)
 }
+
+// IsOwnerOrAdmin checks if the user has owner or admin role in the tenant
+func (s *MemberService) IsOwnerOrAdmin(ctx context.Context, tenantID, userID uuid.UUID) (bool, error) {
+	member, err := s.GetWithRole(ctx, tenantID, userID)
+	if err != nil {
+		return false, err
+	}
+	return member.RoleSlug == "owner" || member.RoleSlug == "admin", nil
+}
+
+func (s *MemberService) GetProfile(ctx context.Context, tenantID, userID uuid.UUID) (database.GetMemberProfileRow, error) {
+	return s.db.GetMemberProfile(ctx, database.GetMemberProfileParams{
+		TenantID: tenantID,
+		UserID:   userID,
+	})
+}
+
+func (s *MemberService) UpdateProfile(ctx context.Context, tenantID, userID uuid.UUID, displayName, bio string) (database.TenantMember, error) {
+	return s.db.UpdateMemberProfile(ctx, database.UpdateMemberProfileParams{
+		TenantID:    tenantID,
+		UserID:      userID,
+		DisplayName: sql.NullString{String: displayName, Valid: displayName != ""},
+		Bio:         sql.NullString{String: bio, Valid: bio != ""},
+	})
+}

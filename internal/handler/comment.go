@@ -48,10 +48,12 @@ func (h *Handler) CreateComment(c echo.Context) error {
 		Content:  req.Content,
 	}
 
+	var parentID *uuid.UUID
 	if req.ParentID != "" {
-		parentID, err := uuid.Parse(req.ParentID)
+		pid, err := uuid.Parse(req.ParentID)
 		if err == nil {
-			input.ParentID = &parentID
+			parentID = &pid
+			input.ParentID = &pid
 		}
 	}
 
@@ -59,6 +61,46 @@ func (h *Handler) CreateComment(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
+
+	// Send notifications asynchronously
+	go func() {
+		ctx := c.Request().Context()
+
+		// Get the post to notify the author
+		post, err := h.services.Post.GetByID(ctx, postID)
+		if err != nil {
+			return
+		}
+
+		if parentID != nil {
+			// This is a reply - notify parent comment author
+			parentComment, err := h.services.Comment.GetByID(ctx, *parentID)
+			if err == nil && parentComment.AuthorID != user.ID {
+				h.services.Notification.NotifyReply(
+					ctx,
+					tenant.ID,
+					parentComment.AuthorID,
+					user.Name,
+					post.Title,
+					postID,
+					comment.ID,
+				)
+			}
+		} else {
+			// This is a top-level comment - notify post author
+			if post.AuthorID != user.ID {
+				h.services.Notification.NotifyComment(
+					ctx,
+					tenant.ID,
+					post.AuthorID,
+					user.Name,
+					post.Title,
+					postID,
+					comment.ID,
+				)
+			}
+		}
+	}()
 
 	return c.JSON(http.StatusCreated, comment)
 }

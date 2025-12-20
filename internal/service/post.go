@@ -114,3 +114,10 @@ func (s *PostService) Delete(ctx context.Context, id uuid.UUID) error {
 func (s *PostService) IncrementViews(ctx context.Context, id uuid.UUID) error {
 	return s.db.IncrementPostViews(ctx, id)
 }
+
+func (s *PostService) ListByAuthor(ctx context.Context, tenantID, authorID uuid.UUID) ([]database.Post, error) {
+	return s.db.ListPostsByAuthor(ctx, database.ListPostsByAuthorParams{
+		TenantID: tenantID,
+		AuthorID: authorID,
+	})
+}

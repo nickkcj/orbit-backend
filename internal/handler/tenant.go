@@ -4,12 +4,21 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/nickkcj/orbit-backend/internal/service"
 )
 
 type CreateTenantRequest struct {
 	Slug        string `json:"slug" validate:"required"`
 	Name        string `json:"name" validate:"required"`
 	Description string `json:"description"`
+}
+
+type UpdateTenantSettingsRequest struct {
+	Theme *service.ThemeSettings `json:"theme"`
+}
+
+type UpdateTenantLogoRequest struct {
+	LogoURL string `json:"logo_url" validate:"required"`
 }
 
 type ErrorResponse struct {
@@ -56,4 +65,74 @@ func (h *Handler) ListTenants(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, tenants)
+}
+
+func (h *Handler) UpdateTenantSettings(c echo.Context) error {
+	// Get tenant from context (set by tenant middleware)
+	tenant := GetTenantFromContext(c)
+	if tenant == nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "tenant context required"})
+	}
+
+	// Get authenticated user
+	user := GetUserFromContext(c)
+	if user == nil {
+		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "authentication required"})
+	}
+
+	// Check if user is owner or admin
+	ctx := c.Request().Context()
+	isOwnerOrAdmin, err := h.services.Member.IsOwnerOrAdmin(ctx, tenant.ID, user.ID)
+	if err != nil || !isOwnerOrAdmin {
+		return c.JSON(http.StatusForbidden, ErrorResponse{Error: "only owners and admins can update settings"})
+	}
+
+	var req UpdateTenantSettingsRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+	}
+
+	settings := service.TenantSettings{
+		Theme: req.Theme,
+	}
+
+	updatedTenant, err := h.services.Tenant.UpdateSettings(ctx, tenant.ID, settings)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to update settings"})
+	}
+
+	return c.JSON(http.StatusOK, updatedTenant)
+}
+
+func (h *Handler) UpdateTenantLogo(c echo.Context) error {
+	// Get tenant from context
+	tenant := GetTenantFromContext(c)
+	if tenant == nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "tenant context required"})
+	}
+
+	// Get authenticated user
+	user := GetUserFromContext(c)
+	if user == nil {
+		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "authentication required"})
+	}
+
+	// Check if user is owner or admin
+	ctx := c.Request().Context()
+	isOwnerOrAdmin, err := h.services.Member.IsOwnerOrAdmin(ctx, tenant.ID, user.ID)
+	if err != nil || !isOwnerOrAdmin {
+		return c.JSON(http.StatusForbidden, ErrorResponse{Error: "only owners and admins can update logo"})
+	}
+
+	var req UpdateTenantLogoRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+	}
+
+	updatedTenant, err := h.services.Tenant.UpdateLogo(ctx, tenant.ID, req.LogoURL)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to update logo"})
+	}
+
+	return c.JSON(http.StatusOK, updatedTenant)
 }

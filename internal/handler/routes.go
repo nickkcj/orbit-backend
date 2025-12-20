@@ -80,6 +80,23 @@ func (h *Handler) RegisterRoutes(
 	tenantProtected.PUT("/members/:userId/role", h.UpdateMemberRole)
 	tenantProtected.DELETE("/members/:userId", h.RemoveMember)
 
+	// Profile (tenant-scoped)
+	tenantScoped.GET("/profile/:userId", h.GetMemberProfile)
+	tenantScoped.GET("/profile/:userId/posts", h.GetMemberPosts)
+	tenantProtected.GET("/profile/me", h.GetMyProfile)
+	tenantProtected.PUT("/profile/me", h.UpdateMyProfile)
+
 	// Uploads (tenant-scoped, protected)
 	tenantProtected.POST("/uploads/presign", h.PresignUpload)
+
+	// Tenant Settings (tenant-scoped, protected - owner/admin only)
+	tenantProtected.PUT("/settings", h.UpdateTenantSettings)
+	tenantProtected.PUT("/settings/logo", h.UpdateTenantLogo)
+
+	// Notifications (tenant-scoped, protected)
+	tenantProtected.GET("/notifications", h.ListNotifications)
+	tenantProtected.GET("/notifications/unread/count", h.GetUnreadCount)
+	tenantProtected.POST("/notifications/read-all", h.MarkAllNotificationsRead)
+	tenantProtected.POST("/notifications/:id/read", h.MarkNotificationRead)
+	tenantProtected.DELETE("/notifications/:id", h.DeleteNotification)
 }

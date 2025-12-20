@@ -41,6 +41,18 @@ type Comment struct {
 	UpdatedAt  time.Time     `json:"updated_at"`
 }
 
+type Notification struct {
+	ID        uuid.UUID             `json:"id"`
+	TenantID  uuid.UUID             `json:"tenant_id"`
+	UserID    uuid.UUID             `json:"user_id"`
+	Type      string                `json:"type"`
+	Title     string                `json:"title"`
+	Message   sql.NullString        `json:"message"`
+	Data      pqtype.NullRawMessage `json:"data"`
+	ReadAt    sql.NullTime          `json:"read_at"`
+	CreatedAt time.Time             `json:"created_at"`
+}
+
 type Permission struct {
 	ID          uuid.UUID      `json:"id"`
 	Code        string         `json:"code"`
