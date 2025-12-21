@@ -41,22 +41,22 @@ func (h *Handler) GetDashboard(c echo.Context) error {
 
 	membersGrowth, err := h.services.Analytics.GetMembersGrowth(ctx, tenant.ID, 30)
 	if err != nil {
-		membersGrowth = []interface{}{}
+		membersGrowth = nil
 	}
 
 	postsGrowth, err := h.services.Analytics.GetPostsGrowth(ctx, tenant.ID, 30)
 	if err != nil {
-		postsGrowth = []interface{}{}
+		postsGrowth = nil
 	}
 
 	topPosts, err := h.services.Analytics.GetTopPosts(ctx, tenant.ID, 5)
 	if err != nil {
-		topPosts = []interface{}{}
+		topPosts = nil
 	}
 
 	recentMembers, err := h.services.Analytics.GetRecentMembers(ctx, tenant.ID, 5)
 	if err != nil {
-		recentMembers = []interface{}{}
+		recentMembers = nil
 	}
 
 	return c.JSON(http.StatusOK, DashboardResponse{

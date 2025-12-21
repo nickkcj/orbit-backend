@@ -41,7 +41,7 @@ func (h *Handler) LikePost(c echo.Context) error {
 	}
 
 	// Get updated post to return like count
-	post, err := h.services.Post.GetByID(c.Request().Context(), tenant.ID, postID)
+	post, err := h.services.Post.GetByID(c.Request().Context(), postID)
 	if err != nil {
 		return c.JSON(http.StatusOK, LikeResponse{Liked: true, LikeCount: 0})
 	}
@@ -78,7 +78,7 @@ func (h *Handler) UnlikePost(c echo.Context) error {
 	}
 
 	// Get updated post to return like count
-	post, err := h.services.Post.GetByID(c.Request().Context(), tenant.ID, postID)
+	post, err := h.services.Post.GetByID(c.Request().Context(), postID)
 	if err != nil {
 		return c.JSON(http.StatusOK, LikeResponse{Liked: false, LikeCount: 0})
 	}
@@ -115,7 +115,7 @@ func (h *Handler) LikeComment(c echo.Context) error {
 	}
 
 	// Get updated comment to return like count
-	comment, err := h.services.Comment.GetByID(c.Request().Context(), tenant.ID, commentID)
+	comment, err := h.services.Comment.GetByID(c.Request().Context(), commentID)
 	if err != nil {
 		return c.JSON(http.StatusOK, LikeResponse{Liked: true, LikeCount: 0})
 	}
@@ -152,7 +152,7 @@ func (h *Handler) UnlikeComment(c echo.Context) error {
 	}
 
 	// Get updated comment to return like count
-	comment, err := h.services.Comment.GetByID(c.Request().Context(), tenant.ID, commentID)
+	comment, err := h.services.Comment.GetByID(c.Request().Context(), commentID)
 	if err != nil {
 		return c.JSON(http.StatusOK, LikeResponse{Liked: false, LikeCount: 0})
 	}
@@ -165,11 +165,6 @@ func (h *Handler) UnlikeComment(c echo.Context) error {
 
 // GetPostLikeStatus handles GET /posts/:id/like
 func (h *Handler) GetPostLikeStatus(c echo.Context) error {
-	tenant := GetTenantFromContext(c)
-	if tenant == nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "tenant context required"})
-	}
-
 	user := GetUserFromContext(c)
 	if user == nil {
 		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "authentication required"})
@@ -186,7 +181,7 @@ func (h *Handler) GetPostLikeStatus(c echo.Context) error {
 	}
 
 	// Get post to return like count
-	post, err := h.services.Post.GetByID(c.Request().Context(), tenant.ID, postID)
+	post, err := h.services.Post.GetByID(c.Request().Context(), postID)
 	if err != nil {
 		return c.JSON(http.StatusOK, LikeResponse{Liked: liked, LikeCount: 0})
 	}
