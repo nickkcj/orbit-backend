@@ -99,4 +99,17 @@ func (h *Handler) RegisterRoutes(
 	tenantProtected.POST("/notifications/read-all", h.MarkAllNotificationsRead)
 	tenantProtected.POST("/notifications/:id/read", h.MarkNotificationRead)
 	tenantProtected.DELETE("/notifications/:id", h.DeleteNotification)
+
+	// Analytics (tenant-scoped, protected - owner/admin only)
+	tenantProtected.GET("/analytics/dashboard", h.GetDashboard)
+	tenantProtected.GET("/analytics/stats", h.GetAnalyticsStats)
+	tenantProtected.GET("/analytics/members/growth", h.GetMembersGrowth)
+	tenantProtected.GET("/analytics/posts/top", h.GetTopPosts)
+
+	// Likes (tenant-scoped, protected)
+	tenantProtected.GET("/posts/:id/like", h.GetPostLikeStatus)
+	tenantProtected.POST("/posts/:id/like", h.LikePost)
+	tenantProtected.DELETE("/posts/:id/like", h.UnlikePost)
+	tenantProtected.POST("/comments/:id/like", h.LikeComment)
+	tenantProtected.DELETE("/comments/:id/like", h.UnlikeComment)
 }

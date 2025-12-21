@@ -17,6 +17,8 @@ type Services struct {
 	Storage      *StorageService
 	Webhook      *WebhookService
 	Notification *NotificationService
+	Analytics    *AnalyticsService
+	Like         *LikeService
 }
 
 type StorageConfig struct {
@@ -37,6 +39,8 @@ func New(db *database.Queries, jwtSecret string, storageConfig *StorageConfig) *
 		Member:       NewMemberService(db),
 		Webhook:      NewWebhookService(db),
 		Notification: NewNotificationService(db),
+		Analytics:    NewAnalyticsService(db),
+		Like:         NewLikeService(db),
 	}
 
 	// Initialize storage service if config provided
