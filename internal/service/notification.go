@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 
 	"github.com/google/uuid"
@@ -55,7 +56,7 @@ func (s *NotificationService) Create(ctx context.Context, input CreateNotificati
 		UserID:   input.UserID,
 		Type:     string(input.Type),
 		Title:    input.Title,
-		Message:  pqtype.NullRawMessage{RawMessage: []byte(input.Message), Valid: input.Message != ""},
+		Message:  sql.NullString{String: input.Message, Valid: input.Message != ""},
 		Data:     pqtype.NullRawMessage{RawMessage: dataJSON, Valid: true},
 	})
 }

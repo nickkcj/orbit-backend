@@ -51,11 +51,17 @@ func (s *AnalyticsService) GetStats(ctx context.Context, tenantID uuid.UUID) (*T
 		return nil, err
 	}
 
+	// TotalViews comes as interface{} from COALESCE, need to convert
+	var totalViews int64
+	if v, ok := stats.TotalViews.(int64); ok {
+		totalViews = v
+	}
+
 	return &TenantStats{
 		TotalMembers:  stats.TotalMembers,
 		TotalPosts:    stats.TotalPosts,
 		TotalComments: stats.TotalComments,
-		TotalViews:    stats.TotalViews,
+		TotalViews:    totalViews,
 	}, nil
 }
 
@@ -73,7 +79,7 @@ func (s *AnalyticsService) GetMembersGrowth(ctx context.Context, tenantID uuid.U
 	result := make([]GrowthPoint, len(rows))
 	for i, row := range rows {
 		result[i] = GrowthPoint{
-			Date:  row.Date.Time.Format("2006-01-02"),
+			Date:  row.Date.Format("2006-01-02"),
 			Count: row.Count,
 		}
 	}
@@ -95,7 +101,7 @@ func (s *AnalyticsService) GetPostsGrowth(ctx context.Context, tenantID uuid.UUI
 	result := make([]GrowthPoint, len(rows))
 	for i, row := range rows {
 		result[i] = GrowthPoint{
-			Date:  row.Date.Time.Format("2006-01-02"),
+			Date:  row.Date.Format("2006-01-02"),
 			Count: row.Count,
 		}
 	}

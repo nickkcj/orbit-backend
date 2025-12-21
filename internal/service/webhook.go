@@ -2,11 +2,11 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 
 	"github.com/google/uuid"
 	"github.com/nickkcj/orbit-backend/internal/database"
-	"github.com/sqlc-dev/pqtype"
 )
 
 type WebhookService struct {
@@ -23,7 +23,7 @@ type WebhookEvent struct {
 	EventType      string          `json:"event_type"`
 	Payload        json.RawMessage `json:"payload"`
 	Status         string          `json:"status"`
-	IdempotencyKey *string         `json:"idempotency_key,omitempty"`
+	IdempotencyKey string          `json:"idempotency_key,omitempty"`
 }
 
 // LogEvent logs a webhook event to the database
@@ -34,17 +34,21 @@ func (s *WebhookService) LogEvent(ctx context.Context, provider, eventType strin
 	// Check if already processed
 	existing, err := s.db.GetWebhookEventByKey(ctx, database.GetWebhookEventByKeyParams{
 		Provider:       provider,
-		IdempotencyKey: &idempotencyKey,
+		IdempotencyKey: sql.NullString{String: idempotencyKey, Valid: true},
 	})
 	if err == nil {
 		// Already exists
+		idemKey := ""
+		if existing.IdempotencyKey.Valid {
+			idemKey = existing.IdempotencyKey.String
+		}
 		return &WebhookEvent{
 			ID:             existing.ID,
 			Provider:       existing.Provider,
 			EventType:      existing.EventType,
-			Payload:        existing.Payload.RawMessage,
+			Payload:        existing.Payload,
 			Status:         existing.Status,
-			IdempotencyKey: existing.IdempotencyKey,
+			IdempotencyKey: idemKey,
 		}, nil
 	}
 
@@ -52,20 +56,25 @@ func (s *WebhookService) LogEvent(ctx context.Context, provider, eventType strin
 	event, err := s.db.CreateWebhookEvent(ctx, database.CreateWebhookEventParams{
 		Provider:       provider,
 		EventType:      eventType,
-		Payload:        pqtype.NullRawMessage{RawMessage: payload, Valid: true},
-		IdempotencyKey: &idempotencyKey,
+		Payload:        payload,
+		IdempotencyKey: sql.NullString{String: idempotencyKey, Valid: true},
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	idemKey := ""
+	if event.IdempotencyKey.Valid {
+		idemKey = event.IdempotencyKey.String
 	}
 
 	return &WebhookEvent{
 		ID:             event.ID,
 		Provider:       event.Provider,
 		EventType:      event.EventType,
-		Payload:        event.Payload.RawMessage,
+		Payload:        event.Payload,
 		Status:         event.Status,
-		IdempotencyKey: event.IdempotencyKey,
+		IdempotencyKey: idemKey,
 	}, nil
 }
 
@@ -78,6 +87,6 @@ func (s *WebhookService) MarkProcessed(ctx context.Context, id uuid.UUID) error 
 func (s *WebhookService) MarkFailed(ctx context.Context, id uuid.UUID, errorMsg string) error {
 	return s.db.MarkWebhookFailed(ctx, database.MarkWebhookFailedParams{
 		ID:           id,
-		ErrorMessage: &errorMsg,
+		ErrorMessage: sql.NullString{String: errorMsg, Valid: errorMsg != ""},
 	})
 }
