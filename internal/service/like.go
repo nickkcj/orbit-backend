@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/nickkcj/orbit-backend/internal/database"
 )
 
@@ -32,9 +31,6 @@ func (s *LikeService) LikePost(ctx context.Context, tenantID, userID, postID uui
 	if err == nil {
 		return ErrAlreadyLiked
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
-		return err
-	}
 
 	_, err = s.db.CreatePostLike(ctx, database.CreatePostLikeParams{
 		TenantID: tenantID,
@@ -51,11 +47,8 @@ func (s *LikeService) UnlikePost(ctx context.Context, tenantID, userID, postID u
 		UserID: userID,
 		PostID: uuid.NullUUID{UUID: postID, Valid: true},
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrNotLiked
-	}
 	if err != nil {
-		return err
+		return ErrNotLiked
 	}
 
 	return s.db.DeletePostLike(ctx, database.DeletePostLikeParams{
@@ -71,11 +64,8 @@ func (s *LikeService) HasUserLikedPost(ctx context.Context, userID, postID uuid.
 		UserID: userID,
 		PostID: uuid.NullUUID{UUID: postID, Valid: true},
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return false, nil
-	}
 	if err != nil {
-		return false, err
+		return false, nil
 	}
 	return true, nil
 }
@@ -89,9 +79,6 @@ func (s *LikeService) LikeComment(ctx context.Context, tenantID, userID, comment
 	})
 	if err == nil {
 		return ErrAlreadyLiked
-	}
-	if !errors.Is(err, pgx.ErrNoRows) {
-		return err
 	}
 
 	_, err = s.db.CreateCommentLike(ctx, database.CreateCommentLikeParams{
@@ -109,11 +96,8 @@ func (s *LikeService) UnlikeComment(ctx context.Context, tenantID, userID, comme
 		UserID:    userID,
 		CommentID: uuid.NullUUID{UUID: commentID, Valid: true},
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrNotLiked
-	}
 	if err != nil {
-		return err
+		return ErrNotLiked
 	}
 
 	return s.db.DeleteCommentLike(ctx, database.DeleteCommentLikeParams{
@@ -129,11 +113,8 @@ func (s *LikeService) HasUserLikedComment(ctx context.Context, userID, commentID
 		UserID:    userID,
 		CommentID: uuid.NullUUID{UUID: commentID, Valid: true},
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return false, nil
-	}
 	if err != nil {
-		return false, err
+		return false, nil
 	}
 	return true, nil
 }
