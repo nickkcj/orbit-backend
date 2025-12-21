@@ -14,6 +14,7 @@ type Services struct {
 	Comment      *CommentService
 	Category     *CategoryService
 	Member       *MemberService
+	Role         *RoleService
 	Storage      *StorageService
 	Webhook      *WebhookService
 	Notification *NotificationService
@@ -37,6 +38,7 @@ func New(db *database.Queries, jwtSecret string, storageConfig *StorageConfig) *
 		Comment:      NewCommentService(db),
 		Category:     NewCategoryService(db),
 		Member:       NewMemberService(db),
+		Role:         NewRoleService(db),
 		Webhook:      NewWebhookService(db),
 		Notification: NewNotificationService(db),
 		Analytics:    NewAnalyticsService(db),

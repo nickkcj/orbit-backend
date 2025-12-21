@@ -39,6 +39,12 @@ func (h *Handler) GetTenantBySlug(c echo.Context) error {
 }
 
 func (h *Handler) CreateTenant(c echo.Context) error {
+	// Get authenticated user
+	user := GetUserFromContext(c)
+	if user == nil {
+		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "authentication required"})
+	}
+
 	var req CreateTenantRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{
@@ -46,11 +52,29 @@ func (h *Handler) CreateTenant(c echo.Context) error {
 		})
 	}
 
-	tenant, err := h.services.Tenant.Create(c.Request().Context(), req.Slug, req.Name, req.Description)
+	ctx := c.Request().Context()
+
+	// Create the tenant
+	tenant, err := h.services.Tenant.Create(ctx, req.Slug, req.Name, req.Description)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error: err.Error(),
 		})
+	}
+
+	// Create default roles for the tenant
+	ownerRole, err := h.services.Role.CreateDefaultRoles(ctx, tenant.ID)
+	if err != nil {
+		// Tenant created but roles failed - log but continue
+		// The owner role is the first one returned
+	}
+
+	// Add the creator as owner member
+	if ownerRole != nil {
+		_, err = h.services.Member.Add(ctx, tenant.ID, user.ID, ownerRole.ID, user.Name)
+		if err != nil {
+			// Log error but don't fail - tenant is created
+		}
 	}
 
 	return c.JSON(http.StatusCreated, tenant)
