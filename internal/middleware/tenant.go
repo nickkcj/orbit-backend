@@ -29,7 +29,13 @@ func NewTenantMiddleware(tenantService *service.TenantService, baseDomain string
 // RequireTenant middleware extracts subdomain, looks up tenant, and requires it to exist
 func (m *TenantMiddleware) RequireTenant(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		slug := m.extractSubdomain(c.Request().Host)
+		// First try to get slug from X-Tenant-Slug header (for cross-origin API calls)
+		slug := c.Request().Header.Get("X-Tenant-Slug")
+
+		// Fallback to extracting from Host header (for direct subdomain access)
+		if slug == "" {
+			slug = m.extractSubdomain(c.Request().Host)
+		}
 
 		// No subdomain = main domain request (not tenant-scoped)
 		if slug == "" {
@@ -66,7 +72,13 @@ func (m *TenantMiddleware) RequireTenant(next echo.HandlerFunc) echo.HandlerFunc
 // OptionalTenant extracts tenant if subdomain present, but doesn't require it
 func (m *TenantMiddleware) OptionalTenant(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		slug := m.extractSubdomain(c.Request().Host)
+		// First try to get slug from X-Tenant-Slug header
+		slug := c.Request().Header.Get("X-Tenant-Slug")
+
+		// Fallback to extracting from Host header
+		if slug == "" {
+			slug = m.extractSubdomain(c.Request().Host)
+		}
 
 		if slug == "" {
 			return next(c)
