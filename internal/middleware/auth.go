@@ -93,7 +93,13 @@ func extractToken(c echo.Context) string {
 		}
 	}
 
-	// Try query param as fallback
+	// Try cookie as fallback (for cross-subdomain auth)
+	cookie, err := c.Cookie("auth_token")
+	if err == nil && cookie.Value != "" {
+		return cookie.Value
+	}
+
+	// Try query param as last resort
 	return c.QueryParam("token")
 }
 
