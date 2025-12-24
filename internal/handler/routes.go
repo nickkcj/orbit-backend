@@ -141,4 +141,63 @@ func (h *Handler) RegisterRoutes(
 
 	// Permissions (tenant-scoped, protected - requires roles.manage permission)
 	tenantProtected.GET("/permissions", h.ListPermissions, permissionMiddleware.RequirePermission("roles.manage"))
+
+	// ============================================
+	// COURSES (tenant-scoped)
+	// ============================================
+
+	// Courses - Public (published only)
+	tenantScoped.GET("/courses", h.ListCourses, permissionMiddleware.RequirePermission("courses.view"))
+	tenantScoped.GET("/courses/:id", h.GetCourse, permissionMiddleware.RequirePermission("courses.view"))
+	tenantScoped.GET("/courses/:id/structure", h.GetCourseStructure, permissionMiddleware.RequirePermission("courses.view"))
+
+	// Courses - Protected (CRUD)
+	tenantProtected.POST("/courses", h.CreateCourse, permissionMiddleware.RequirePermission("courses.create"))
+	tenantProtected.PUT("/courses/:id", h.UpdateCourse, permissionMiddleware.RequireAnyPermission("courses.edit", "courses.edit_own"))
+	tenantProtected.POST("/courses/:id/publish", h.PublishCourse, permissionMiddleware.RequirePermission("courses.publish"))
+	tenantProtected.POST("/courses/:id/unpublish", h.UnpublishCourse, permissionMiddleware.RequirePermission("courses.publish"))
+	tenantProtected.DELETE("/courses/:id", h.DeleteCourse, permissionMiddleware.RequireAnyPermission("courses.delete", "courses.delete_own"))
+
+	// Modules - Protected
+	tenantProtected.GET("/courses/:courseId/modules", h.ListModules, permissionMiddleware.RequirePermission("courses.view"))
+	tenantProtected.POST("/courses/:courseId/modules", h.CreateModule, permissionMiddleware.RequireAnyPermission("courses.edit", "courses.edit_own"))
+	tenantProtected.GET("/modules/:id", h.GetModule, permissionMiddleware.RequirePermission("courses.view"))
+	tenantProtected.PUT("/modules/:id", h.UpdateModule, permissionMiddleware.RequireAnyPermission("courses.edit", "courses.edit_own"))
+	tenantProtected.PUT("/modules/:id/reorder", h.ReorderModule, permissionMiddleware.RequireAnyPermission("courses.edit", "courses.edit_own"))
+	tenantProtected.DELETE("/modules/:id", h.DeleteModule, permissionMiddleware.RequireAnyPermission("courses.edit", "courses.edit_own"))
+
+	// Lessons - Protected
+	tenantProtected.GET("/modules/:moduleId/lessons", h.ListLessons, permissionMiddleware.RequirePermission("courses.view"))
+	tenantProtected.POST("/modules/:moduleId/lessons", h.CreateLesson, permissionMiddleware.RequireAnyPermission("courses.edit", "courses.edit_own"))
+	tenantProtected.GET("/lessons/:id", h.GetLesson, permissionMiddleware.RequirePermission("courses.view"))
+	tenantProtected.PUT("/lessons/:id", h.UpdateLesson, permissionMiddleware.RequireAnyPermission("courses.edit", "courses.edit_own"))
+	tenantProtected.PUT("/lessons/:id/reorder", h.ReorderLesson, permissionMiddleware.RequireAnyPermission("courses.edit", "courses.edit_own"))
+	tenantProtected.DELETE("/lessons/:id", h.DeleteLesson, permissionMiddleware.RequireAnyPermission("courses.edit", "courses.edit_own"))
+
+	// ============================================
+	// ENROLLMENTS (tenant-scoped)
+	// ============================================
+
+	// Enrollments - User's own enrollments
+	tenantProtected.POST("/enrollments", h.EnrollInCourse, permissionMiddleware.RequirePermission("enrollments.enroll"))
+	tenantProtected.GET("/enrollments", h.GetMyEnrollments, permissionMiddleware.RequirePermission("enrollments.view"))
+	tenantProtected.GET("/enrollments/continue", h.GetContinueLearning, permissionMiddleware.RequirePermission("enrollments.view"))
+
+	// Course enrollment status
+	tenantProtected.GET("/courses/:id/enrollment", h.GetCourseEnrollmentStatus, permissionMiddleware.RequirePermission("enrollments.view"))
+	tenantProtected.DELETE("/courses/:id/enrollment", h.DropCourseEnrollment, permissionMiddleware.RequirePermission("enrollments.view"))
+	tenantProtected.GET("/courses/:id/progress", h.GetCourseProgress, permissionMiddleware.RequirePermission("enrollments.view"))
+
+	// Admin: List course enrollments
+	tenantProtected.GET("/courses/:id/enrollments", h.ListCourseEnrollments, permissionMiddleware.RequirePermission("enrollments.manage"))
+
+	// ============================================
+	// LESSON PLAYER (tenant-scoped)
+	// ============================================
+
+	// Lesson player endpoints
+	tenantProtected.GET("/learn/lessons/:id", h.GetLessonForPlayer, permissionMiddleware.RequirePermission("enrollments.view"))
+	tenantProtected.POST("/learn/lessons/:id/complete", h.MarkLessonComplete, permissionMiddleware.RequirePermission("enrollments.view"))
+	tenantProtected.DELETE("/learn/lessons/:id/complete", h.UnmarkLessonComplete, permissionMiddleware.RequirePermission("enrollments.view"))
+	tenantProtected.PUT("/learn/lessons/:id/video-progress", h.UpdateLessonVideoProgress, permissionMiddleware.RequirePermission("enrollments.view"))
 }

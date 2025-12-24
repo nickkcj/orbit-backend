@@ -1,3 +1,4 @@
+-- +goose Up
 -- ============================================================================
 -- ORBIT BACKEND - Likes Schema
 -- Track user likes on posts and comments
@@ -36,6 +37,7 @@ CREATE INDEX idx_likes_comment ON likes(comment_id) WHERE comment_id IS NOT NULL
 -- FUNCTIONS: Auto-update like counts
 -- ============================================================================
 
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION update_like_counts()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -59,6 +61,7 @@ BEGIN
     RETURN COALESCE(NEW, OLD);
 END;
 $$ LANGUAGE plpgsql;
+-- +goose StatementEnd
 
 CREATE TRIGGER update_like_counts_trigger
     AFTER INSERT OR DELETE ON likes

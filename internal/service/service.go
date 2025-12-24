@@ -24,6 +24,8 @@ type Services struct {
 	Permission   *PermissionService
 	Stream       *StreamService
 	Video        *VideoService
+	Course       *CourseService
+	Enrollment   *EnrollmentService
 }
 
 type StorageConfig struct {
@@ -48,6 +50,8 @@ func New(db *database.Queries, jwtSecret string, storageConfig *StorageConfig, s
 		Analytics:    NewAnalyticsService(db),
 		Like:         NewLikeService(db),
 		Permission:   NewPermissionService(db, c),
+		Course:       NewCourseService(db),
+		Enrollment:   NewEnrollmentService(db),
 	}
 
 	// Initialize storage service if config provided

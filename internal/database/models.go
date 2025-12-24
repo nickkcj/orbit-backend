@@ -41,6 +41,69 @@ type Comment struct {
 	UpdatedAt  time.Time     `json:"updated_at"`
 }
 
+type Course struct {
+	ID           uuid.UUID      `json:"id"`
+	TenantID     uuid.UUID      `json:"tenant_id"`
+	AuthorID     uuid.UUID      `json:"author_id"`
+	Title        string         `json:"title"`
+	Slug         string         `json:"slug"`
+	Description  sql.NullString `json:"description"`
+	ThumbnailUrl sql.NullString `json:"thumbnail_url"`
+	Status       string         `json:"status"`
+	PublishedAt  sql.NullTime   `json:"published_at"`
+	ModuleCount  int32          `json:"module_count"`
+	LessonCount  int32          `json:"lesson_count"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
+}
+
+type CourseEnrollment struct {
+	ID                    uuid.UUID     `json:"id"`
+	TenantID              uuid.UUID     `json:"tenant_id"`
+	UserID                uuid.UUID     `json:"user_id"`
+	CourseID              uuid.UUID     `json:"course_id"`
+	Status                string        `json:"status"`
+	ProgressPercentage    int32         `json:"progress_percentage"`
+	CompletedLessonsCount int32         `json:"completed_lessons_count"`
+	TotalLessonsCount     int32         `json:"total_lessons_count"`
+	LastLessonID          uuid.NullUUID `json:"last_lesson_id"`
+	LastAccessedAt        sql.NullTime  `json:"last_accessed_at"`
+	EnrolledAt            time.Time     `json:"enrolled_at"`
+	CompletedAt           sql.NullTime  `json:"completed_at"`
+	CreatedAt             time.Time     `json:"created_at"`
+	UpdatedAt             time.Time     `json:"updated_at"`
+}
+
+type Lesson struct {
+	ID              uuid.UUID      `json:"id"`
+	TenantID        uuid.UUID      `json:"tenant_id"`
+	ModuleID        uuid.UUID      `json:"module_id"`
+	Title           string         `json:"title"`
+	Description     sql.NullString `json:"description"`
+	Content         sql.NullString `json:"content"`
+	ContentFormat   string         `json:"content_format"`
+	VideoID         uuid.NullUUID  `json:"video_id"`
+	Position        int32          `json:"position"`
+	DurationMinutes sql.NullInt32  `json:"duration_minutes"`
+	IsFreePreview   bool           `json:"is_free_preview"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+}
+
+type LessonProgress struct {
+	ID                   uuid.UUID     `json:"id"`
+	TenantID             uuid.UUID     `json:"tenant_id"`
+	EnrollmentID         uuid.UUID     `json:"enrollment_id"`
+	LessonID             uuid.UUID     `json:"lesson_id"`
+	Status               string        `json:"status"`
+	WatchDurationSeconds int32         `json:"watch_duration_seconds"`
+	VideoTotalSeconds    sql.NullInt32 `json:"video_total_seconds"`
+	StartedAt            sql.NullTime  `json:"started_at"`
+	CompletedAt          sql.NullTime  `json:"completed_at"`
+	CreatedAt            time.Time     `json:"created_at"`
+	UpdatedAt            time.Time     `json:"updated_at"`
+}
+
 type Like struct {
 	ID        uuid.UUID     `json:"id"`
 	TenantID  uuid.UUID     `json:"tenant_id"`
@@ -48,6 +111,18 @@ type Like struct {
 	PostID    uuid.NullUUID `json:"post_id"`
 	CommentID uuid.NullUUID `json:"comment_id"`
 	CreatedAt time.Time     `json:"created_at"`
+}
+
+type Module struct {
+	ID          uuid.UUID      `json:"id"`
+	TenantID    uuid.UUID      `json:"tenant_id"`
+	CourseID    uuid.UUID      `json:"course_id"`
+	Title       string         `json:"title"`
+	Description sql.NullString `json:"description"`
+	Position    int32          `json:"position"`
+	LessonCount int32          `json:"lesson_count"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
 }
 
 type Notification struct {

@@ -1,3 +1,4 @@
+-- +goose Up
 -- ============================================================================
 -- ORBIT BACKEND - Initial Schema
 -- Multi-tenant community platform

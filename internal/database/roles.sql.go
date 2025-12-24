@@ -99,6 +99,41 @@ func (q *Queries) GetDefaultRole(ctx context.Context, tenantID uuid.UUID) (Role,
 	return i, err
 }
 
+const getMemberPermissions = `-- name: GetMemberPermissions :many
+SELECT p.code FROM permissions p
+JOIN role_permissions rp ON p.id = rp.permission_id
+JOIN tenant_members tm ON rp.role_id = tm.role_id
+WHERE tm.tenant_id = $1 AND tm.user_id = $2 AND tm.status = 'active'
+`
+
+type GetMemberPermissionsParams struct {
+	TenantID uuid.UUID `json:"tenant_id"`
+	UserID   uuid.UUID `json:"user_id"`
+}
+
+func (q *Queries) GetMemberPermissions(ctx context.Context, arg GetMemberPermissionsParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, getMemberPermissions, arg.TenantID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var code string
+		if err := rows.Scan(&code); err != nil {
+			return nil, err
+		}
+		items = append(items, code)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getRoleByID = `-- name: GetRoleByID :one
 SELECT id, tenant_id, slug, name, description, priority, is_default, is_system, created_at, updated_at FROM roles WHERE id = $1
 `
@@ -182,6 +217,32 @@ func (q *Queries) GetRolePermissions(ctx context.Context, roleID uuid.UUID) ([]P
 		return nil, err
 	}
 	return items, nil
+}
+
+const hasPermission = `-- name: HasPermission :one
+SELECT EXISTS (
+    SELECT 1
+    FROM permissions p
+    JOIN role_permissions rp ON p.id = rp.permission_id
+    JOIN tenant_members tm ON rp.role_id = tm.role_id
+    WHERE tm.tenant_id = $1
+    AND tm.user_id = $2
+    AND tm.status = 'active'
+    AND p.code = $3
+) as has_permission
+`
+
+type HasPermissionParams struct {
+	TenantID uuid.UUID `json:"tenant_id"`
+	UserID   uuid.UUID `json:"user_id"`
+	Code     string    `json:"code"`
+}
+
+func (q *Queries) HasPermission(ctx context.Context, arg HasPermissionParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, hasPermission, arg.TenantID, arg.UserID, arg.Code)
+	var has_permission bool
+	err := row.Scan(&has_permission)
+	return has_permission, err
 }
 
 const listPermissions = `-- name: ListPermissions :many
