@@ -63,7 +63,11 @@ func (s *TenantService) UpdateSettings(ctx context.Context, tenantID uuid.UUID, 
 
 func (s *TenantService) UpdateLogo(ctx context.Context, tenantID uuid.UUID, logoURL string) (database.Tenant, error) {
 	return s.db.UpdateTenantLogo(ctx, database.UpdateTenantLogoParams{
-		ID:     tenantID,
+		ID:      tenantID,
 		LogoUrl: sql.NullString{String: logoURL, Valid: logoURL != ""},
 	})
+}
+
+func (s *TenantService) Delete(ctx context.Context, tenantID uuid.UUID) error {
+	return s.db.DeleteTenant(ctx, tenantID)
 }

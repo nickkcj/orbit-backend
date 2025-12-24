@@ -65,16 +65,21 @@ func (h *Handler) CreateTenant(c echo.Context) error {
 	// Create default roles for the tenant
 	ownerRole, err := h.services.Role.CreateDefaultRoles(ctx, tenant.ID)
 	if err != nil {
-		// Tenant created but roles failed - log but continue
-		// The owner role is the first one returned
+		// Roles failed - delete tenant and return error
+		_ = h.services.Tenant.Delete(ctx, tenant.ID)
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error: "failed to create default roles: " + err.Error(),
+		})
 	}
 
-	// Add the creator as owner member
-	if ownerRole != nil {
-		_, err = h.services.Member.Add(ctx, tenant.ID, user.ID, ownerRole.ID, user.Name)
-		if err != nil {
-			// Log error but don't fail - tenant is created
-		}
+	// Add the creator as owner member - this MUST succeed
+	_, err = h.services.Member.Add(ctx, tenant.ID, user.ID, ownerRole.ID, user.Name)
+	if err != nil {
+		// Member add failed - delete tenant and return error
+		_ = h.services.Tenant.Delete(ctx, tenant.ID)
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error: "failed to add owner to community: " + err.Error(),
+		})
 	}
 
 	return c.JSON(http.StatusCreated, tenant)
