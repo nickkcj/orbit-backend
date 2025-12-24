@@ -199,8 +199,8 @@ SELECT
     c.module_count as course_module_count,
     u.name as author_name,
     u.avatar_url as author_avatar,
-    l.id as last_lesson_id,
-    l.title as last_lesson_title,
+    l.id as lesson_id,
+    l.title as lesson_title,
     m.title as last_module_title
 FROM course_enrollments e
 JOIN courses c ON e.course_id = c.id
@@ -240,8 +240,8 @@ type GetContinueLearningCoursesRow struct {
 	CourseModuleCount     int32          `json:"course_module_count"`
 	AuthorName            string         `json:"author_name"`
 	AuthorAvatar          sql.NullString `json:"author_avatar"`
-	LastLessonID_2        uuid.NullUUID  `json:"last_lesson_id_2"`
-	LastLessonTitle       sql.NullString `json:"last_lesson_title"`
+	LessonID              uuid.NullUUID  `json:"lesson_id"`
+	LessonTitle           sql.NullString `json:"lesson_title"`
 	LastModuleTitle       sql.NullString `json:"last_module_title"`
 }
 
@@ -276,8 +276,8 @@ func (q *Queries) GetContinueLearningCourses(ctx context.Context, arg GetContinu
 			&i.CourseModuleCount,
 			&i.AuthorName,
 			&i.AuthorAvatar,
-			&i.LastLessonID_2,
-			&i.LastLessonTitle,
+			&i.LessonID,
+			&i.LessonTitle,
 			&i.LastModuleTitle,
 		); err != nil {
 			return nil, err

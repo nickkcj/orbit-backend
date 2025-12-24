@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/gosimple/slug"
@@ -32,6 +34,26 @@ type CreateCourseInput struct {
 
 func (s *CourseService) Create(ctx context.Context, input CreateCourseInput) (database.Course, error) {
 	courseSlug := slug.Make(input.Title)
+
+	// Check if slug already exists and generate unique one if needed
+	baseSlug := courseSlug
+	suffix := 1
+	for {
+		_, err := s.db.GetCourseBySlug(ctx, database.GetCourseBySlugParams{
+			TenantID: input.TenantID,
+			Slug:     courseSlug,
+		})
+		if errors.Is(err, sql.ErrNoRows) {
+			// Slug is available
+			break
+		}
+		if err != nil {
+			return database.Course{}, fmt.Errorf("failed to check slug: %w", err)
+		}
+		// Slug exists, try with suffix
+		suffix++
+		courseSlug = fmt.Sprintf("%s-%d", baseSlug, suffix)
+	}
 
 	return s.db.CreateCourse(ctx, database.CreateCourseParams{
 		TenantID:     input.TenantID,

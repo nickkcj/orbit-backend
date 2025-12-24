@@ -15,6 +15,7 @@ type PresignUploadRequest struct {
 
 type PresignUploadResponse struct {
 	UploadURL string `json:"upload_url"`
+	PublicURL string `json:"public_url"`
 	FileKey   string `json:"file_key"`
 	ExpiresIn int    `json:"expires_in"`
 }
@@ -85,6 +86,7 @@ func (h *Handler) PresignUpload(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, PresignUploadResponse{
 		UploadURL: result.UploadURL,
+		PublicURL: h.services.Storage.GetPublicURL(result.FileKey),
 		FileKey:   result.FileKey,
 		ExpiresIn: result.ExpiresIn,
 	})
@@ -223,6 +225,7 @@ func (h *Handler) PresignImageUpload(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, PresignUploadResponse{
 		UploadURL: result.UploadURL,
+		PublicURL: h.services.Storage.GetPublicURL(result.FileKey),
 		FileKey:   result.FileKey,
 		ExpiresIn: result.ExpiresIn,
 	})

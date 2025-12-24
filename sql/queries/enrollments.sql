@@ -65,8 +65,8 @@ SELECT
     c.module_count as course_module_count,
     u.name as author_name,
     u.avatar_url as author_avatar,
-    l.id as last_lesson_id,
-    l.title as last_lesson_title,
+    l.id as lesson_id,
+    l.title as lesson_title,
     m.title as last_module_title
 FROM course_enrollments e
 JOIN courses c ON e.course_id = c.id

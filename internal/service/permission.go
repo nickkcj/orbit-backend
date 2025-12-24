@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -50,6 +52,20 @@ func (s *PermissionService) GetUserPermissions(ctx context.Context, tenantID, us
 		UserID:   userID,
 	})
 	if err != nil {
+		// If user is not a member of this tenant, return empty permissions (not an error)
+		if errors.Is(err, sql.ErrNoRows) {
+			result := &CachedPermissions{
+				Permissions:  make(map[string]bool),
+				RoleSlug:     "",
+				RolePriority: 0,
+				CachedAt:     time.Now(),
+			}
+			// Cache empty permissions with shorter TTL (1 minute)
+			if s.cache != nil {
+				s.cache.Set(ctx, cacheKey, result, time.Minute)
+			}
+			return result, nil
+		}
 		return nil, err
 	}
 

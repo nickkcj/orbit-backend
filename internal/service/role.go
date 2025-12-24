@@ -42,6 +42,18 @@ type Permission struct {
 // CreateDefaultRoles creates the default roles for a new tenant
 // Returns the owner role (highest priority)
 func (s *RoleService) CreateDefaultRoles(ctx context.Context, tenantID uuid.UUID) (*database.Role, error) {
+	// Get all available permissions
+	allPermissions, err := s.db.ListPermissions(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get permissions: %w", err)
+	}
+
+	// Build permission maps by category for easier assignment
+	permByCode := make(map[string]uuid.UUID)
+	for _, p := range allPermissions {
+		permByCode[p.Code] = p.ID
+	}
+
 	// Create Owner role (highest priority)
 	ownerRole, err := s.db.CreateRole(ctx, database.CreateRoleParams{
 		TenantID:    tenantID,
@@ -56,7 +68,7 @@ func (s *RoleService) CreateDefaultRoles(ctx context.Context, tenantID uuid.UUID
 	}
 
 	// Create Admin role
-	_, err = s.db.CreateRole(ctx, database.CreateRoleParams{
+	adminRole, err := s.db.CreateRole(ctx, database.CreateRoleParams{
 		TenantID:    tenantID,
 		Slug:        "admin",
 		Name:        "Admin",
@@ -69,7 +81,7 @@ func (s *RoleService) CreateDefaultRoles(ctx context.Context, tenantID uuid.UUID
 	}
 
 	// Create Member role (default for new members)
-	_, err = s.db.CreateRole(ctx, database.CreateRoleParams{
+	memberRole, err := s.db.CreateRole(ctx, database.CreateRoleParams{
 		TenantID:    tenantID,
 		Slug:        "member",
 		Name:        "Member",
@@ -79,6 +91,48 @@ func (s *RoleService) CreateDefaultRoles(ctx context.Context, tenantID uuid.UUID
 	})
 	if err != nil {
 		return &ownerRole, err
+	}
+
+	// Owner gets ALL permissions
+	for _, p := range allPermissions {
+		s.db.AddRolePermission(ctx, database.AddRolePermissionParams{
+			RoleID:       ownerRole.ID,
+			PermissionID: p.ID,
+		})
+	}
+
+	// Admin gets management permissions (no delete permissions)
+	adminPermissions := []string{
+		"posts.view", "posts.create", "posts.edit",
+		"members.view", "members.invite", "members.manage",
+		"courses.view", "courses.create", "courses.edit",
+		"enrollments.view", "enrollments.enroll", "enrollments.manage",
+		"settings.view", "settings.edit",
+		"analytics.view",
+	}
+	for _, code := range adminPermissions {
+		if permID, ok := permByCode[code]; ok {
+			s.db.AddRolePermission(ctx, database.AddRolePermissionParams{
+				RoleID:       adminRole.ID,
+				PermissionID: permID,
+			})
+		}
+	}
+
+	// Member gets basic view and interaction permissions
+	memberPermissions := []string{
+		"posts.view", "posts.create",
+		"members.view",
+		"courses.view",
+		"enrollments.view", "enrollments.enroll",
+	}
+	for _, code := range memberPermissions {
+		if permID, ok := permByCode[code]; ok {
+			s.db.AddRolePermission(ctx, database.AddRolePermissionParams{
+				RoleID:       memberRole.ID,
+				PermissionID: permID,
+			})
+		}
 	}
 
 	return &ownerRole, nil
@@ -134,7 +188,10 @@ func (s *RoleService) ListByTenant(ctx context.Context, tenantID uuid.UUID) ([]R
 
 	result := make([]RoleResponse, len(roles))
 	for i, role := range roles {
-		permissions, _ := s.db.GetRolePermissions(ctx, role.ID)
+		permissions, err := s.db.GetRolePermissions(ctx, role.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get permissions for role %s: %w", role.Slug, err)
+		}
 
 		perms := make([]Permission, len(permissions))
 		for j, p := range permissions {
