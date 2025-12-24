@@ -10,11 +10,14 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
 	github.com/gosimple/slug v1.14.0
+	github.com/hibiken/asynq v0.24.1
 	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo/v4 v4.12.0
 	github.com/lib/pq v1.10.9
+	github.com/redis/go-redis/v9 v9.7.0
 	github.com/sqlc-dev/pqtype v0.3.0
 	golang.org/x/crypto v0.22.0
+	nhooyr.io/websocket v1.8.11
 )
 
 require (

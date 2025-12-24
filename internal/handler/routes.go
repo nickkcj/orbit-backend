@@ -4,19 +4,28 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/nickkcj/orbit-backend/internal/middleware"
+	"github.com/nickkcj/orbit-backend/internal/websocket"
 )
 
 func (h *Handler) RegisterRoutes(
 	e *echo.Echo,
 	authMiddleware *middleware.AuthMiddleware,
 	tenantMiddleware *middleware.TenantMiddleware,
+	permissionMiddleware *middleware.PermissionMiddleware,
+	wsHandler *websocket.Handler,
 ) {
 	// Health
 	e.GET("/health", h.Health)
 
+	// WebSocket endpoint (no middleware - auth handled in handler)
+	if wsHandler != nil {
+		e.GET("/ws", wsHandler.HandleWebSocket)
+	}
+
 	// Webhooks (public endpoints for external services)
 	webhooks := e.Group("/webhooks")
 	webhooks.POST("/r2", h.HandleR2Webhook)
+	webhooks.POST("/stream", h.HandleStreamWebhook)
 
 	// API v1
 	v1 := e.Group("/api/v1")
@@ -52,33 +61,33 @@ func (h *Handler) RegisterRoutes(
 
 	// Categories (tenant-scoped)
 	tenantScoped.GET("/categories", h.ListCategories)
-	tenantProtected.POST("/categories", h.CreateCategory)
+	tenantProtected.POST("/categories", h.CreateCategory, permissionMiddleware.RequirePermission("categories.manage"))
 	tenantProtected.GET("/categories/:id", h.GetCategory)
-	tenantProtected.PUT("/categories/:id", h.UpdateCategory)
-	tenantProtected.DELETE("/categories/:id", h.DeleteCategory)
+	tenantProtected.PUT("/categories/:id", h.UpdateCategory, permissionMiddleware.RequirePermission("categories.manage"))
+	tenantProtected.DELETE("/categories/:id", h.DeleteCategory, permissionMiddleware.RequirePermission("categories.manage"))
 
 	// Posts (tenant-scoped)
 	tenantScoped.GET("/posts", h.ListPosts)
 	tenantScoped.GET("/posts/:id", h.GetPost)
-	tenantProtected.POST("/posts", h.CreatePost)
-	tenantProtected.PUT("/posts/:id", h.UpdatePost)
-	tenantProtected.POST("/posts/:id/publish", h.PublishPost)
-	tenantProtected.DELETE("/posts/:id", h.DeletePost)
+	tenantProtected.POST("/posts", h.CreatePost, permissionMiddleware.RequirePermission("posts.create"))
+	tenantProtected.PUT("/posts/:id", h.UpdatePost, permissionMiddleware.RequireAnyPermission("posts.edit", "posts.edit_own"))
+	tenantProtected.POST("/posts/:id/publish", h.PublishPost, permissionMiddleware.RequireAnyPermission("posts.edit", "posts.edit_own"))
+	tenantProtected.DELETE("/posts/:id", h.DeletePost, permissionMiddleware.RequireAnyPermission("posts.delete", "posts.delete_own"))
 
 	// Comments (tenant-scoped)
 	tenantScoped.GET("/posts/:postId/comments", h.ListComments)
 	tenantScoped.GET("/comments/:id", h.GetComment)
 	tenantScoped.GET("/comments/:id/replies", h.ListReplies)
-	tenantProtected.POST("/comments", h.CreateComment)
-	tenantProtected.PUT("/comments/:id", h.UpdateComment)
-	tenantProtected.DELETE("/comments/:id", h.DeleteComment)
+	tenantProtected.POST("/comments", h.CreateComment, permissionMiddleware.RequirePermission("comments.create"))
+	tenantProtected.PUT("/comments/:id", h.UpdateComment, permissionMiddleware.RequirePermission("comments.edit_own"))
+	tenantProtected.DELETE("/comments/:id", h.DeleteComment, permissionMiddleware.RequireAnyPermission("comments.delete", "comments.delete_own"))
 
 	// Members (tenant-scoped)
 	tenantScoped.GET("/members", h.ListMembers)
-	tenantProtected.POST("/members", h.AddMember)
+	tenantProtected.POST("/members", h.AddMember, permissionMiddleware.RequirePermission("members.invite"))
 	tenantProtected.GET("/members/:userId", h.GetMember)
-	tenantProtected.PUT("/members/:userId/role", h.UpdateMemberRole)
-	tenantProtected.DELETE("/members/:userId", h.RemoveMember)
+	tenantProtected.PUT("/members/:userId/role", h.UpdateMemberRole, permissionMiddleware.RequirePermission("members.manage"))
+	tenantProtected.DELETE("/members/:userId", h.RemoveMember, permissionMiddleware.RequirePermission("members.remove"))
 
 	// Profile (tenant-scoped)
 	tenantScoped.GET("/profile/:userId", h.GetMemberProfile)
@@ -89,9 +98,9 @@ func (h *Handler) RegisterRoutes(
 	// Uploads (tenant-scoped, protected)
 	tenantProtected.POST("/uploads/presign", h.PresignUpload)
 
-	// Tenant Settings (tenant-scoped, protected - owner/admin only)
-	tenantProtected.PUT("/settings", h.UpdateTenantSettings)
-	tenantProtected.PUT("/settings/logo", h.UpdateTenantLogo)
+	// Tenant Settings (tenant-scoped, protected - requires settings.edit permission)
+	tenantProtected.PUT("/settings", h.UpdateTenantSettings, permissionMiddleware.RequirePermission("settings.edit"))
+	tenantProtected.PUT("/settings/logo", h.UpdateTenantLogo, permissionMiddleware.RequirePermission("settings.edit"))
 
 	// Notifications (tenant-scoped, protected)
 	tenantProtected.GET("/notifications", h.ListNotifications)
@@ -101,10 +110,10 @@ func (h *Handler) RegisterRoutes(
 	tenantProtected.DELETE("/notifications/:id", h.DeleteNotification)
 
 	// Analytics (tenant-scoped, protected - owner/admin only)
-	tenantProtected.GET("/analytics/dashboard", h.GetDashboard)
-	tenantProtected.GET("/analytics/stats", h.GetAnalyticsStats)
-	tenantProtected.GET("/analytics/members/growth", h.GetMembersGrowth)
-	tenantProtected.GET("/analytics/posts/top", h.GetTopPosts)
+	tenantProtected.GET("/analytics/dashboard", h.GetDashboard, permissionMiddleware.RequireOwnerOrAdmin())
+	tenantProtected.GET("/analytics/stats", h.GetAnalyticsStats, permissionMiddleware.RequireOwnerOrAdmin())
+	tenantProtected.GET("/analytics/members/growth", h.GetMembersGrowth, permissionMiddleware.RequireOwnerOrAdmin())
+	tenantProtected.GET("/analytics/posts/top", h.GetTopPosts, permissionMiddleware.RequireOwnerOrAdmin())
 
 	// Likes (tenant-scoped, protected)
 	tenantProtected.GET("/posts/:id/like", h.GetPostLikeStatus)
@@ -112,4 +121,23 @@ func (h *Handler) RegisterRoutes(
 	tenantProtected.DELETE("/posts/:id/like", h.UnlikePost)
 	tenantProtected.POST("/comments/:id/like", h.LikeComment)
 	tenantProtected.DELETE("/comments/:id/like", h.UnlikeComment)
+
+	// Videos (tenant-scoped)
+	tenantScoped.GET("/videos", h.ListVideos, permissionMiddleware.RequirePermission("videos.view"))
+	tenantScoped.GET("/videos/:id", h.GetVideo, permissionMiddleware.RequirePermission("videos.view"))
+	tenantProtected.POST("/videos", h.InitiateVideoUpload, permissionMiddleware.RequirePermission("videos.upload"))
+	tenantProtected.POST("/videos/:id/confirm", h.ConfirmVideoUpload, permissionMiddleware.RequirePermission("videos.upload"))
+	tenantProtected.GET("/videos/:id/token", h.GetVideoPlaybackToken, permissionMiddleware.RequirePermission("videos.view"))
+	tenantProtected.DELETE("/videos/:id", h.DeleteVideo, permissionMiddleware.RequireAnyPermission("videos.delete", "videos.delete_own"))
+
+	// Roles (tenant-scoped, protected - requires roles.manage permission)
+	tenantProtected.GET("/roles", h.ListRoles, permissionMiddleware.RequirePermission("roles.manage"))
+	tenantProtected.POST("/roles", h.CreateRole, permissionMiddleware.RequirePermission("roles.manage"))
+	tenantProtected.GET("/roles/:id", h.GetRole, permissionMiddleware.RequirePermission("roles.manage"))
+	tenantProtected.PUT("/roles/:id", h.UpdateRole, permissionMiddleware.RequirePermission("roles.manage"))
+	tenantProtected.DELETE("/roles/:id", h.DeleteRole, permissionMiddleware.RequirePermission("roles.manage"))
+	tenantProtected.PUT("/roles/:id/permissions", h.SetRolePermissions, permissionMiddleware.RequirePermission("roles.manage"))
+
+	// Permissions (tenant-scoped, protected - requires roles.manage permission)
+	tenantProtected.GET("/permissions", h.ListPermissions, permissionMiddleware.RequirePermission("roles.manage"))
 }

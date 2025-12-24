@@ -3,6 +3,7 @@ package service
 import (
 	"log"
 
+	"github.com/nickkcj/orbit-backend/internal/cache"
 	"github.com/nickkcj/orbit-backend/internal/database"
 )
 
@@ -20,6 +21,9 @@ type Services struct {
 	Notification *NotificationService
 	Analytics    *AnalyticsService
 	Like         *LikeService
+	Permission   *PermissionService
+	Stream       *StreamService
+	Video        *VideoService
 }
 
 type StorageConfig struct {
@@ -29,7 +33,7 @@ type StorageConfig struct {
 	BucketName      string
 }
 
-func New(db *database.Queries, jwtSecret string, storageConfig *StorageConfig) *Services {
+func New(db *database.Queries, jwtSecret string, storageConfig *StorageConfig, streamConfig *StreamConfig, c cache.Cache) *Services {
 	services := &Services{
 		Auth:         NewAuthService(db, jwtSecret),
 		Tenant:       NewTenantService(db),
@@ -43,6 +47,7 @@ func New(db *database.Queries, jwtSecret string, storageConfig *StorageConfig) *
 		Notification: NewNotificationService(db),
 		Analytics:    NewAnalyticsService(db),
 		Like:         NewLikeService(db),
+		Permission:   NewPermissionService(db, c),
 	}
 
 	// Initialize storage service if config provided
@@ -59,6 +64,21 @@ func New(db *database.Queries, jwtSecret string, storageConfig *StorageConfig) *
 			services.Storage = storage
 			log.Println("Storage service initialized (R2)")
 		}
+	}
+
+	// Initialize stream and video services if config provided
+	if streamConfig != nil && streamConfig.AccountID != "" && streamConfig.APIToken != "" {
+		stream, err := NewStreamService(streamConfig)
+		if err != nil {
+			log.Printf("Warning: Failed to initialize stream service: %v", err)
+		} else {
+			services.Stream = stream
+			services.Video = NewVideoService(db, stream)
+			log.Println("Stream service initialized (Cloudflare)")
+		}
+	} else {
+		// Create video service without stream (limited functionality)
+		services.Video = NewVideoService(db, nil)
 	}
 
 	return services

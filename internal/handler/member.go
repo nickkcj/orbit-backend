@@ -1,10 +1,13 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+
+	"github.com/nickkcj/orbit-backend/internal/worker/tasks"
 )
 
 type AddMemberRequest struct {
@@ -60,10 +63,20 @@ func (h *Handler) AddMember(c echo.Context) error {
 		}
 	}
 
-	// Send welcome notification
-	go func() {
-		h.services.Notification.NotifyWelcome(c.Request().Context(), tenant.ID, userID, tenant.Name)
-	}()
+	// Enqueue welcome notification task
+	if h.taskClient != nil {
+		task, err := tasks.NewSendNotificationTask(tasks.NotificationPayload{
+			Type:          "welcome",
+			TenantID:      tenant.ID,
+			RecipientID:   userID,
+			CommunityName: tenant.Name,
+		})
+		if err == nil {
+			if _, err := h.taskClient.Enqueue(task); err != nil {
+				log.Printf("Failed to enqueue welcome notification: %v", err)
+			}
+		}
+	}
 
 	return c.JSON(http.StatusCreated, member)
 }

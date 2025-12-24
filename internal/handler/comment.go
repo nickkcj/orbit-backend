@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"context"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -8,6 +10,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/nickkcj/orbit-backend/internal/service"
+	"github.com/nickkcj/orbit-backend/internal/worker/tasks"
 )
 
 type CreateCommentRequest struct {
@@ -62,9 +65,9 @@ func (h *Handler) CreateComment(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	// Send notifications asynchronously
+	// Enqueue notification task asynchronously
 	go func() {
-		ctx := c.Request().Context()
+		ctx := context.Background() // Use fresh context, not request context
 
 		// Get the post to notify the author
 		post, err := h.services.Post.GetByID(ctx, postID)
@@ -72,32 +75,44 @@ func (h *Handler) CreateComment(c echo.Context) error {
 			return
 		}
 
+		var payload tasks.NotificationPayload
+
 		if parentID != nil {
 			// This is a reply - notify parent comment author
 			parentComment, err := h.services.Comment.GetByID(ctx, *parentID)
 			if err == nil && parentComment.AuthorID != user.ID {
-				h.services.Notification.NotifyReply(
-					ctx,
-					tenant.ID,
-					parentComment.AuthorID,
-					user.Name,
-					post.Title,
-					postID,
-					comment.ID,
-				)
+				payload = tasks.NotificationPayload{
+					Type:        "reply",
+					TenantID:    tenant.ID,
+					RecipientID: parentComment.AuthorID,
+					PostID:      &postID,
+					PostTitle:   post.Title,
+					CommentID:   &comment.ID,
+					AuthorName:  user.Name,
+				}
 			}
 		} else {
 			// This is a top-level comment - notify post author
 			if post.AuthorID != user.ID {
-				h.services.Notification.NotifyComment(
-					ctx,
-					tenant.ID,
-					post.AuthorID,
-					user.Name,
-					post.Title,
-					postID,
-					comment.ID,
-				)
+				payload = tasks.NotificationPayload{
+					Type:        "comment",
+					TenantID:    tenant.ID,
+					RecipientID: post.AuthorID,
+					PostID:      &postID,
+					PostTitle:   post.Title,
+					CommentID:   &comment.ID,
+					AuthorName:  user.Name,
+				}
+			}
+		}
+
+		// Enqueue the notification task
+		if payload.Type != "" && h.taskClient != nil {
+			task, err := tasks.NewSendNotificationTask(payload)
+			if err == nil {
+				if _, err := h.taskClient.Enqueue(task); err != nil {
+					log.Printf("Failed to enqueue notification task: %v", err)
+				}
 			}
 		}
 	}()

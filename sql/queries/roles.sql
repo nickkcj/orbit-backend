@@ -39,3 +39,21 @@ DELETE FROM role_permissions WHERE role_id = $1 AND permission_id = $2;
 
 -- name: ListPermissions :many
 SELECT * FROM permissions ORDER BY category, code;
+
+-- name: GetMemberPermissions :many
+SELECT p.code FROM permissions p
+JOIN role_permissions rp ON p.id = rp.permission_id
+JOIN tenant_members tm ON rp.role_id = tm.role_id
+WHERE tm.tenant_id = $1 AND tm.user_id = $2 AND tm.status = 'active';
+
+-- name: HasPermission :one
+SELECT EXISTS (
+    SELECT 1
+    FROM permissions p
+    JOIN role_permissions rp ON p.id = rp.permission_id
+    JOIN tenant_members tm ON rp.role_id = tm.role_id
+    WHERE tm.tenant_id = $1
+    AND tm.user_id = $2
+    AND tm.status = 'active'
+    AND p.code = $3
+) as has_permission;
