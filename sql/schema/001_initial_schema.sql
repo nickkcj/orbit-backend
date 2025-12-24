@@ -386,6 +386,7 @@ INSERT INTO permissions (code, name, description, category) VALUES
 -- FUNCTIONS: Auto-update updated_at
 -- ============================================================================
 
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -393,6 +394,7 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+-- +goose StatementEnd
 
 -- Apply triggers
 CREATE TRIGGER update_tenants_updated_at BEFORE UPDATE ON tenants FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -408,6 +410,7 @@ CREATE TRIGGER update_comments_updated_at BEFORE UPDATE ON comments FOR EACH ROW
 -- FUNCTIONS: Auto-create default roles on tenant creation
 -- ============================================================================
 
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION create_default_roles()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -454,6 +457,7 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+-- +goose StatementEnd
 
 CREATE TRIGGER create_tenant_default_roles
     AFTER INSERT ON tenants
@@ -464,6 +468,7 @@ CREATE TRIGGER create_tenant_default_roles
 -- FUNCTIONS: Auto-calculate comment depth and update counters
 -- ============================================================================
 
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION set_comment_depth()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -475,6 +480,7 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+-- +goose StatementEnd
 
 CREATE TRIGGER set_comment_depth_trigger
     BEFORE INSERT ON comments
@@ -482,6 +488,7 @@ CREATE TRIGGER set_comment_depth_trigger
     EXECUTE FUNCTION set_comment_depth();
 
 -- Atualiza reply_count do comentário pai e comment_count do post
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION update_comment_counters()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -507,6 +514,7 @@ BEGIN
     RETURN COALESCE(NEW, OLD);
 END;
 $$ LANGUAGE plpgsql;
+-- +goose StatementEnd
 
 CREATE TRIGGER update_comment_counters_trigger
     AFTER INSERT OR DELETE ON comments
