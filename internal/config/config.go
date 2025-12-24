@@ -14,6 +14,12 @@ type Config struct {
 	Environment string
 	JWTSecret   string
 	BaseDomain  string
+	FrontendURL string
+
+	// Google OAuth
+	GoogleClientID     string
+	GoogleClientSecret string
+	GoogleRedirectURL  string
 
 	// R2/S3 Storage
 	R2AccountID       string
@@ -51,6 +57,12 @@ func Load() *Config {
 		Environment: getEnv("ENVIRONMENT", "development"),
 		JWTSecret:   getEnv("JWT_SECRET", "change-me-in-production"),
 		BaseDomain:  getEnv("BASE_DOMAIN", "orbit.app.br"),
+		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:3000"),
+
+		// Google OAuth
+		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
+		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
+		GoogleRedirectURL:  getEnv("GOOGLE_REDIRECT_URL", "http://localhost:8080/api/v1/auth/google/callback"),
 
 		// R2/S3 Storage
 		R2AccountID:       getEnv("R2_ACCOUNT_ID", ""),

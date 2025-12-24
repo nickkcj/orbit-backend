@@ -35,9 +35,9 @@ type StorageConfig struct {
 	BucketName      string
 }
 
-func New(db *database.Queries, jwtSecret string, storageConfig *StorageConfig, streamConfig *StreamConfig, c cache.Cache) *Services {
+func New(db *database.Queries, jwtSecret string, storageConfig *StorageConfig, streamConfig *StreamConfig, googleConfig *GoogleOAuthConfig, c cache.Cache) *Services {
 	services := &Services{
-		Auth:         NewAuthService(db, jwtSecret),
+		Auth:         NewAuthService(db, jwtSecret, googleConfig),
 		Tenant:       NewTenantService(db),
 		User:         NewUserService(db),
 		Post:         NewPostService(db),

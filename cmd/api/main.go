@@ -86,7 +86,19 @@ func main() {
 		WebhookSecret: cfg.CloudflareStreamWebhookSecret,
 	}
 
-	services := service.New(db, cfg.JWTSecret, storageConfig, streamConfig, redisCache)
+	// Google OAuth config
+	var googleConfig *service.GoogleOAuthConfig
+	if cfg.GoogleClientID != "" && cfg.GoogleClientSecret != "" {
+		googleConfig = &service.GoogleOAuthConfig{
+			ClientID:     cfg.GoogleClientID,
+			ClientSecret: cfg.GoogleClientSecret,
+			RedirectURL:  cfg.GoogleRedirectURL,
+			FrontendURL:  cfg.FrontendURL,
+		}
+		log.Println("Google OAuth configured")
+	}
+
+	services := service.New(db, cfg.JWTSecret, storageConfig, streamConfig, googleConfig, redisCache)
 
 	// Initialize task client
 	taskClient := worker.NewTaskClient(redisOpt)

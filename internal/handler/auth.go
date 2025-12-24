@@ -80,3 +80,79 @@ func (h *Handler) Me(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, user)
 }
+
+// ============================================================================
+// Google OAuth Handlers
+// ============================================================================
+
+// GoogleAuth redirects to Google OAuth authorization page
+func (h *Handler) GoogleAuth(c echo.Context) error {
+	if !h.services.Auth.IsGoogleOAuthConfigured() {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "Google OAuth not configured"})
+	}
+
+	state, err := h.services.Auth.GenerateOAuthState()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to generate state"})
+	}
+
+	// Store state in cookie for verification
+	c.SetCookie(&http.Cookie{
+		Name:     "oauth_state",
+		Value:    state,
+		Path:     "/",
+		MaxAge:   300, // 5 minutes
+		HttpOnly: true,
+		Secure:   c.Request().TLS != nil,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	authURL := h.services.Auth.GetGoogleAuthURL(state)
+	return c.Redirect(http.StatusTemporaryRedirect, authURL)
+}
+
+// GoogleCallback handles the OAuth callback from Google
+func (h *Handler) GoogleCallback(c echo.Context) error {
+	frontendURL := h.services.Auth.GetFrontendURL()
+
+	// Check for errors from Google
+	if errParam := c.QueryParam("error"); errParam != "" {
+		return c.Redirect(http.StatusTemporaryRedirect, frontendURL+"/login?error="+errParam)
+	}
+
+	// Verify state
+	state := c.QueryParam("state")
+	stateCookie, err := c.Cookie("oauth_state")
+	if err != nil || stateCookie.Value != state {
+		return c.Redirect(http.StatusTemporaryRedirect, frontendURL+"/login?error=invalid_state")
+	}
+
+	// Clear state cookie
+	c.SetCookie(&http.Cookie{
+		Name:     "oauth_state",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+	})
+
+	// Exchange code for user info
+	code := c.QueryParam("code")
+	if code == "" {
+		return c.Redirect(http.StatusTemporaryRedirect, frontendURL+"/login?error=no_code")
+	}
+
+	googleUser, err := h.services.Auth.ExchangeGoogleCode(c.Request().Context(), code)
+	if err != nil {
+		return c.Redirect(http.StatusTemporaryRedirect, frontendURL+"/login?error=exchange_failed")
+	}
+
+	// Login or register user
+	result, err := h.services.Auth.LoginOrRegisterWithGoogle(c.Request().Context(), googleUser)
+	if err != nil {
+		return c.Redirect(http.StatusTemporaryRedirect, frontendURL+"/login?error=auth_failed")
+	}
+
+	// Redirect to frontend with token
+	return c.Redirect(http.StatusTemporaryRedirect, frontendURL+"/login?token="+result.Token)
+}

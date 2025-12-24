@@ -37,6 +37,8 @@ func (h *Handler) RegisterRoutes(
 	// Auth (public)
 	v1.POST("/auth/register", h.Register)
 	v1.POST("/auth/login", h.Login)
+	v1.GET("/auth/google", h.GoogleAuth)
+	v1.GET("/auth/google/callback", h.GoogleCallback)
 
 	// Auth (protected)
 	v1.GET("/auth/me", h.Me, authMiddleware.RequireAuth)
