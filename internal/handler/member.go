@@ -25,8 +25,9 @@ type UpdateMemberStatusRequest struct {
 }
 
 type UpdateProfileRequest struct {
-	DisplayName string `json:"display_name"`
-	Bio         string `json:"bio"`
+	DisplayName string  `json:"display_name"`
+	Bio         string  `json:"bio"`
+	AvatarURL   *string `json:"avatar_url"`
 }
 
 func (h *Handler) AddMember(c echo.Context) error {
@@ -232,9 +233,18 @@ func (h *Handler) UpdateMyProfile(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
 	}
 
+	// Update tenant member profile (display_name, bio)
 	_, err := h.services.Member.UpdateProfile(c.Request().Context(), tenant.ID, user.ID, req.DisplayName, req.Bio)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to update profile"})
+	}
+
+	// Update user avatar if provided
+	if req.AvatarURL != nil {
+		_, err := h.services.User.UpdateAvatar(c.Request().Context(), user.ID, *req.AvatarURL)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to update avatar"})
+		}
 	}
 
 	// Return updated profile

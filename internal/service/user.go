@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/nickkcj/orbit-backend/internal/database"
@@ -39,4 +40,19 @@ func (s *UserService) GetByEmail(ctx context.Context, email string) (database.Us
 func (s *UserService) VerifyPassword(hashedPassword, password string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 	return err == nil
+}
+
+func (s *UserService) UpdateAvatar(ctx context.Context, userID uuid.UUID, avatarURL string) (database.User, error) {
+	user, err := s.db.GetUserByID(ctx, userID)
+	if err != nil {
+		return database.User{}, err
+	}
+
+	avatar := sql.NullString{String: avatarURL, Valid: avatarURL != ""}
+
+	return s.db.UpdateUser(ctx, database.UpdateUserParams{
+		ID:        user.ID,
+		Name:      user.Name,
+		AvatarUrl: avatar,
+	})
 }

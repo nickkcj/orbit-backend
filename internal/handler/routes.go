@@ -97,6 +97,7 @@ func (h *Handler) RegisterRoutes(
 
 	// Uploads (tenant-scoped, protected)
 	tenantProtected.POST("/uploads/presign", h.PresignUpload)
+	tenantProtected.POST("/uploads/presign-image", h.PresignImageUpload)
 
 	// Tenant Settings (tenant-scoped, protected - requires settings.edit permission)
 	tenantProtected.PUT("/settings", h.UpdateTenantSettings, permissionMiddleware.RequirePermission("settings.edit"))

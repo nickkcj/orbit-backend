@@ -90,6 +90,31 @@ func (s *StorageService) GenerateUploadURL(ctx context.Context, tenantID uuid.UU
 	}, nil
 }
 
+// GenerateImageUploadURL generates a presigned URL for uploading an image (avatars, etc)
+func (s *StorageService) GenerateImageUploadURL(ctx context.Context, tenantID uuid.UUID, filename string, contentType string) (*PresignedUploadResult, error) {
+	// Generate unique file key: tenants/{tenant_id}/images/{uuid}/{filename}
+	fileUUID := uuid.New().String()
+	fileKey := fmt.Sprintf("tenants/%s/images/%s/%s", tenantID.String(), fileUUID, filename)
+
+	// Presign PUT request (15 minutes expiry)
+	expiresIn := 15 * time.Minute
+
+	presignedReq, err := s.presigner.PresignPutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(s.bucketName),
+		Key:         aws.String(fileKey),
+		ContentType: aws.String(contentType),
+	}, s3.WithPresignExpires(expiresIn))
+	if err != nil {
+		return nil, fmt.Errorf("failed to presign upload URL: %w", err)
+	}
+
+	return &PresignedUploadResult{
+		UploadURL: presignedReq.URL,
+		FileKey:   fileKey,
+		ExpiresIn: int(expiresIn.Seconds()),
+	}, nil
+}
+
 // GetPublicURL returns the public URL for a file (requires R2.dev subdomain enabled)
 func (s *StorageService) GetPublicURL(fileKey string) string {
 	return fmt.Sprintf("https://%s.r2.dev/%s", s.bucketName, fileKey)
